@@ -1,0 +1,77 @@
+.canvasArea {
+  background: #f4f4f6;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  padding: 16px;
+}
+
+.settingsBox {
+  background: #fafafa;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  flex: 1;
+  min-width: 300px;
+}
+
+.sizeLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.infoIcon {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #eee;
+  color: #888;
+  font-weight: 700;
+  font-size: 14px;
+  text-align: center;
+  line-height: 18px;
+  cursor: pointer;
+  position: relative;
+}
+
+.infoTooltip {
+  display: none;
+  position: absolute;
+  left: 22px;
+  top: -4px;
+  background: #222;
+  color: #fff;
+  font-size: 13px;
+  border-radius: 6px;
+  padding: 6px 12px;
+  white-space: nowrap;
+  z-index: 10;
+}
+
+.designRadioGroup {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.designRadioBtn {
+  padding: 10px 24px;
+  border-radius: 8px;
+  border: 2px solid #eee;
+  background: #fff;
+  font-weight: 500;
+  font-size: 1rem;
+  color: #444;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.designRadioBtn.selected {
+  border-color: #ff8aa8;
+  background: #ffe0f7;
+  color: #d14a7a;
+}

@@ -16,7 +16,7 @@ function Navbar() {
             <ul className={styles['navbar-menu']}>
                 <li><Link href="/">Home</Link></li>
                 <li><Link href="/samples/bids">Bids</Link></li>
-                <li><Link href="/monthly">Monthly</Link></li>
+                <li><Link href="/customizer">Make</Link></li>
                 <li><Link href="/my">My</Link></li>
             </ul>
         </nav>

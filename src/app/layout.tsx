@@ -1,6 +1,7 @@
 import "./globals.css";
 import Navbar from './components/Navbar';
 import BidsSample from "./samples/bids/page";
+import { RidiBatang } from "./fonts";
 
 export default function RootLayout({
   children,
@@ -9,7 +10,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>
+      <body className={RidiBatang.variable}>
         <Navbar />
         {children}
       </body>

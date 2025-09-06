@@ -2,6 +2,8 @@
 import { useControls } from "leva";
 import styles from "./page.module.css";
 import BeadViewer from "../_components/BeadViewer";
+import TorusBeadViewer from "../_components/TorusBeadViewer";
+import BeadFlowerViewer from "../_components/FlowerViewer";
 
 export default function Playground() {
   const { count, color } = useControls({
@@ -9,7 +11,11 @@ export default function Playground() {
     color: { value: "#ff6699" },
   });
 
-  return <div className={styles.bidsContainer}>
-    <BeadViewer count={count} color={color} />
-  </div>;
+  return (
+    <div className={styles.bidsContainer}>
+      <BeadViewer count={count} color={color} />
+      <TorusBeadViewer />
+      <BeadFlowerViewer />
+    </div>
+  );
 }
