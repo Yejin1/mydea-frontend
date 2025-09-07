@@ -5,10 +5,10 @@ import * as THREE from "three";
 import { useMemo, useRef, useLayoutEffect } from "react";
 
 function BeadRingTorus({
-  count = 50,          // 비즈 개수 = 길이감
-  ringRadius = 10,     // 반지 반경
-  outer = 0.9,         // 토러스 바깥쪽 반경(대반경) = 비즈 길이의 절반 느낌
-  tube = 0.28,         // 토러스 두께(벽 두께 느낌)
+  count = 50, // 비즈 개수 = 길이감
+  ringRadius = 10, // 반지 반경
+  outer = 0.9, // 토러스 바깥쪽 반경(대반경) = 비즈 길이의 절반 느낌
+  tube = 0.28, // 토러스 두께(벽 두께 느낌)
   color = "#ff8aa8",
 }: {
   count?: number;
@@ -18,14 +18,17 @@ function BeadRingTorus({
   color?: string;
 }) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
-  const geom = useMemo(() => new THREE.TorusGeometry(outer, tube, 24, 48), [outer, tube]);
-  const mat  = useMemo(
+  const geom = useMemo(
+    () => new THREE.TorusGeometry(outer, tube, 24, 48),
+    [outer, tube]
+  );
+  const mat = useMemo(
     () =>
       new THREE.MeshPhysicalMaterial({
         color,
         roughness: 0.15,
         metalness: 0.0,
-        transmission: 0.9, 
+        transmission: 0.9,
         thickness: 0.8,
         ior: 1.25,
       }),
@@ -33,9 +36,9 @@ function BeadRingTorus({
   );
 
   const dummy = useMemo(() => new THREE.Object3D(), []);
-  const upY   = useMemo(() => new THREE.Vector3(0, 0, 1), []);
+  const upY = useMemo(() => new THREE.Vector3(0, 0, 1), []);
   const colors = ["#f09999", "#9dc99f", "#b0bcfc"];
-  const colorArr = colors.map(c => new THREE.Color(c));
+  const colorArr = colors.map((c) => new THREE.Color(c));
 
   useLayoutEffect(() => {
     const m = meshRef.current;
@@ -50,7 +53,11 @@ function BeadRingTorus({
       const y = 1;
 
       // 접선 벡터(실이 지나가는 방향)
-      const tangent = new THREE.Vector3(-Math.sin(t), 0, Math.cos(t)).normalize();
+      const tangent = new THREE.Vector3(
+        -Math.sin(t),
+        0,
+        Math.cos(t)
+      ).normalize();
 
       // 위치/회전 적용
       dummy.position.set(x, y, z);
@@ -77,8 +84,8 @@ export default function TorusBeadViewer() {
       <BeadRingTorus
         count={27}
         ringRadius={7}
-        outer={0.15}  
-        tube={0.63}
+        outer={0.15}
+        tube={0.6}
         color="#ffffff"
       />
     </Canvas>
