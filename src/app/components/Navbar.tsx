@@ -15,7 +15,7 @@ function Navbar() {
           </div>
         </div>
       </div>
-      <ul className={styles["navbar-menu"]}>
+      <ul className={`${styles["navbar-menu"]} ${RidiBatang.className}`}>
         <li>
           <Link href="/">Home</Link>
         </li>
