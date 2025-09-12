@@ -74,9 +74,9 @@ function BeadFlowerRing({
 
   //  옆 비즈 중심 간 간격(월드 단위) → 각도 간격 Δθ
   // (필요 시 prop으로 빼서 튜닝 가능)
-  const beadWorldGap = beadOuter * 2.0 + 0.9;
+  const beadWorldGap = beadOuter * 0.9 + 0.9;
   const beadStepAngle = beadWorldGap / ringRadius; // Δθ
-  const beadStartOffset = 0.11;
+  const beadStartOffset = 0.1;
 
   useLayoutEffect(() => {
     const mC = refCenter.current,

@@ -1,5 +1,6 @@
 "use client";
 import BeadsViewer from "./_components/BeadsViewer";
+import BeadFlowerViewer from "./_components/FlowerViewer";
 import { useEffect, useMemo, useState } from "react";
 import styles from "./customizer.module.css";
 import { PretendardRegular, PretendardExtraBold } from "@/app/fonts";
@@ -15,9 +16,11 @@ export default function CustomizerPage() {
   const [size, setSize] = useState("small");
   const [radius, setRadius] = useState<number>(0);
   const [count, setCount] = useState<number>(0);
-  const [shape, setShape] = useState("round");
+  const [flowersOptions, setFlowersOptions] = useState<number[]>([]);
+  const [flowers, setFlowers] = useState<number>(6);
   const [tooltipIdx, setTooltipIdx] = useState<number | null>(null);
   const [design, setDesign] = useState<"basic" | "flower">("basic");
+
   const [flowerColors, setFlowerColors] = useState({
     petal: "#ffb6c1",
     center: "#ffe066",
@@ -29,10 +32,27 @@ export default function CustomizerPage() {
   const [autoSize, setAutoSize] = useState<number>(0);
   const [selectedIdx, setSelectedIdx] = useState(0);
 
-  // 옵션 계산 함수
-  function computeOptions(acc: Accessory, colorCount: number) {
-    let minCount = 24;
-    let maxCount = 36;
+  // 뷰어와 동일한 파라미터로 월드 거리 정의
+  const beadOuter = 0.15; // 토러스 대반경(뷰어와 동일)
+  const gapPadding = 0.9; // 비즈 사이 여유(튜닝값)
+  const beadWorldGap = 2 * beadOuter + gapPadding;
+
+  const petalOffset = 1.4; // 꽃 중심↔꽃잎 거리(뷰어와 동일)
+  const clearanceMargin = 0.2; // 꽃-비즈 사이 추가 여유(튜닝값)
+  const flowerClearanceWorld = petalOffset + beadOuter + clearanceMargin;
+
+  const flowerGapRatio = 0.3; // 꽃 세그먼트 사이 여백 비율 (0 = 붙임, 0.3 = 30% 추가 간격)
+
+  function computeOptions(
+    acc: "ring" | "bracelet" | "necklace",
+    colorCount: number,
+    design: "basic" | "flower",
+    flowersBase: number,
+    beadWorldGap: number,
+    flowerClearanceWorld: number
+  ) {
+    let minCount = 24,
+      maxCount = 36;
     if (acc === "bracelet") {
       minCount = 90;
       maxCount = 126;
@@ -42,24 +62,82 @@ export default function CustomizerPage() {
       maxCount = 282;
     }
 
-    // colorCount의 배수로 시작
-    const start = Math.ceil(minCount / colorCount) * colorCount;
+    const countToRadius = (count: number) => count / 5;
+    const countToSizeCm = (count: number) => Math.round((count * 5) / 3) / 10;
+
+    if (design === "basic") {
+      const patternLen = Math.max(1, colorCount);
+      const start = Math.ceil(minCount / patternLen) * patternLen;
+      const counts: number[] = [];
+      for (let c = start; c <= maxCount; c += patternLen) counts.push(c);
+      const radii = counts.map(countToRadius);
+      const sizes = counts.map(countToSizeCm);
+      const R0 = radii[0] ?? 0;
+      return {
+        counts,
+        radii,
+        sizes,
+        auto: sizes[0] ?? 0,
+        flowersArr: [],
+      };
+    }
+
+    // FLOWER MODE
+    // Base linear length occupied by one flower segment (flower + its beads)
+    const baseLinear = flowerClearanceWorld + colorCount * beadWorldGap; // L_base
+    const gapRatio = flowerGapRatio; // configurable
+    const L_total_per_segment = baseLinear * (1 + gapRatio); // L_segment = (flower + beads) + gap
+
+    const flowersMin = 4;
+    const flowersMax = 40;
+
+    const flowersArr: number[] = [];
     const counts: number[] = [];
-    for (let cnt = start; cnt <= maxCount; cnt += colorCount) counts.push(cnt);
+    const radii: number[] = [];
+    const sizes: number[] = [];
 
-    const radii = counts.map((c) => c / 5); // 예: radius = count / 5
-    const sizes = counts.map((c) => Math.round((c * 5) / 3) / 10); // mm=>cm 표기(소수1자리)
+    for (let F = flowersMin; F <= flowersMax; F++) {
+      // Ideal radius from linear segmentation (uniform gap maintained)
+      const R_ideal = (L_total_per_segment * F) / (2 * Math.PI);
+      // Snap to discrete count (count = R * 5) per existing rule
+      const countApprox = Math.round(R_ideal * 5);
+      if (countApprox < minCount || countApprox > maxCount) continue;
+      const R = countApprox / 5; // snapped radius actually used
+      const sizeCm = countToSizeCm(countApprox);
+      flowersArr.push(F);
+      counts.push(countApprox);
+      radii.push(R);
+      sizes.push(sizeCm);
+    }
 
-    // autoSize는 첫 옵션 기준 (없으면 0)
-    const auto = sizes[0] ?? 0;
-
-    return { counts, radii, sizes, auto };
+    return {
+      counts,
+      radii,
+      sizes,
+      auto: sizes[0] ?? 0,
+      flowersArr,
+    };
   }
 
   //accessory, colors.length 변화시에만 파생 옵션 재계산
   const derived = useMemo(
-    () => computeOptions(accessory, colors.length),
-    [accessory, colors.length]
+    () =>
+      computeOptions(
+        accessory, // "ring" | "bracelet" | "necklace"
+        colors.length, // colorCount
+        design, // "basic" | "flower"
+        flowers, // 패턴 반복(꽃 개수)
+        beadWorldGap,
+        flowerClearanceWorld
+      ),
+    [
+      accessory,
+      colors.length,
+      design,
+      flowers,
+      beadWorldGap,
+      flowerClearanceWorld,
+    ]
   );
 
   // 파생값을 한 번에 교체
@@ -68,10 +146,27 @@ export default function CustomizerPage() {
     setRadiusOption(derived.radii);
     setSizeOption(derived.sizes);
     setAutoSize(derived.auto);
-  }, [derived]);
+    if (design === "flower") {
+      setFlowersOptions(derived.flowersArr);
+    }
+  }, [derived, design]);
+
+  // 옵션 배열이 바뀔 때마다 첫 번째 값 자동 세팅
+  useEffect(() => {
+    if (
+      sizeOption.length > 0 &&
+      countOption.length > 0 &&
+      radiusOption.length > 0
+    ) {
+      setSize(String(sizeOption[0]));
+      setSelectedIdx(0);
+      setCount(countOption[0]);
+      setRadius(radiusOption[0]);
+    }
+  }, [sizeOption, countOption, radiusOption]);
 
   useEffect(() => {
-    // 자동 사이즈 옵션 계산
+    if (design === "flower") return; // only basic mode
     const newSizeOptions: number[] = [];
     // 예시: 악세사리 종류와 색상 개수에 따라 옵션 생성
     let minCount = 24,
@@ -91,7 +186,30 @@ export default function CustomizerPage() {
       newSizeOptions.push(Math.round((cnt * 5) / 3));
     }
     setSizeOption(newSizeOptions);
-  }, [accessory, colors.length]);
+  }, [accessory, colors.length, design]);
+
+  // 사이즈 옵션이 비었을 때 경고 & 선택값 초기화
+  useEffect(() => {
+    if (sizeOption.length === 0) {
+      // 현재 선택된 값 초기화
+      setSize("");
+      setSelectedIdx(-1);
+      setCount(0);
+      setRadius(0);
+      if (typeof window !== "undefined") {
+        alert("가능한 사이즈가 없습니다.\n색상을 추가하거나 삭제해주세요");
+      }
+      return;
+    }
+    // 기존 선택값이 새 옵션에 없으면 첫번째로 재설정
+    const idx = sizeOption.findIndex((v) => String(v) === size);
+    if (idx === -1) {
+      setSize(String(sizeOption[0]));
+      setSelectedIdx(0);
+      setCount(countOption[0]);
+      setRadius(radiusOption[0]);
+    }
+  }, [sizeOption, size, countOption, radiusOption]);
 
   // 색상 핸들러
   const handleColorChange = (idx: number, value: string) => {
@@ -118,12 +236,24 @@ export default function CustomizerPage() {
     <div style={{ display: "flex", gap: 32, padding: 32 }}>
       {/* 왼쪽 BeadsViewer */}
       <div className={styles.canvasArea} style={{ flex: 1, minWidth: 300 }}>
-        <BeadsViewer
-          colors={colors}
-          count={count}
-          ringRadius={radius}
-          cameraDistance={cameraDistance}
-        />
+        {design === "flower" ? (
+          <BeadFlowerViewer
+            colors={colors}
+            count={count}
+            flowers={flowersOptions[selectedIdx] || 6}
+            ringRadius={radius}
+            petalColor={flowerColors.petal}
+            centerColor={flowerColors.center}
+            cameraDistance={cameraDistance}
+          />
+        ) : (
+          <BeadsViewer
+            colors={colors}
+            count={count}
+            ringRadius={radius}
+            cameraDistance={cameraDistance}
+          />
+        )}
       </div>
 
       {/* 오른쪽 설정 박스 */}
@@ -267,34 +397,6 @@ export default function CustomizerPage() {
                   cursor: "pointer",
                 }}
               />
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <label
-                className={PretendardExtraBold.variable}
-                style={{ fontWeight: 800 }}
-              >
-                꽃 위치
-              </label>
-              <label style={{ marginRight: 12 }}>
-                <input
-                  type="radio"
-                  name="flowerPosition"
-                  value="center"
-                  checked={flowerPosition === "center"}
-                  onChange={() => setFlowerPosition("center")}
-                />{" "}
-                중앙
-              </label>
-              <label>
-                <input
-                  type="radio"
-                  name="flowerPosition"
-                  value="repeat"
-                  checked={flowerPosition === "repeat"}
-                  onChange={() => setFlowerPosition("repeat")}
-                />{" "}
-                반복
-              </label>
             </div>
           </div>
         )}
