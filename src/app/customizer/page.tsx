@@ -1,7 +1,7 @@
 "use client";
 import BeadsViewer from "./_components/BeadsViewer";
 import BeadFlowerViewer from "./_components/FlowerViewer";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import styles from "./customizer.module.css";
 import { PretendardRegular, PretendardExtraBold } from "@/app/fonts";
 
@@ -25,12 +25,11 @@ export default function CustomizerPage() {
     petal: "#ffb6c1",
     center: "#ffe066",
   });
-  const [flowerPosition, setFlowerPosition] = useState<"center" | "repeat">(
-    "center"
-  );
+
   const [accessory, setAccessory] = useState<Accessory>("ring");
   const [autoSize, setAutoSize] = useState<number>(0);
   const [selectedIdx, setSelectedIdx] = useState(0);
+  const firstLoadRef = useRef(true); // 최초 진입 플래그
 
   // 뷰어와 동일한 파라미터로 월드 거리 정의
   const beadOuter = 0.15; // 토러스 대반경(뷰어와 동일)
@@ -63,7 +62,7 @@ export default function CustomizerPage() {
     }
 
     const countToRadius = (count: number) => count / 5;
-    const countToSizeCm = (count: number) => Math.round((count * 5) / 3) / 10;
+    const countToSizeMm = (count: number) => Math.round((count * 5) / 3);
 
     if (design === "basic") {
       const patternLen = Math.max(1, colorCount);
@@ -71,7 +70,7 @@ export default function CustomizerPage() {
       const counts: number[] = [];
       for (let c = start; c <= maxCount; c += patternLen) counts.push(c);
       const radii = counts.map(countToRadius);
-      const sizes = counts.map(countToSizeCm);
+      const sizes = counts.map(countToSizeMm);
       const R0 = radii[0] ?? 0;
       return {
         counts,
@@ -103,11 +102,11 @@ export default function CustomizerPage() {
       const countApprox = Math.round(R_ideal * 5);
       if (countApprox < minCount || countApprox > maxCount) continue;
       const R = countApprox / 5; // snapped radius actually used
-      const sizeCm = countToSizeCm(countApprox);
+      const sizeMm = countToSizeMm(countApprox);
       flowersArr.push(F);
       counts.push(countApprox);
       radii.push(R);
-      sizes.push(sizeCm);
+      sizes.push(sizeMm);
     }
 
     return {
@@ -190,8 +189,13 @@ export default function CustomizerPage() {
 
   // 사이즈 옵션이 비었을 때 경고 & 선택값 초기화
   useEffect(() => {
+    // 최초 로딩 동안(sizeOption 아직 미계산) 경고 방지
+    if (firstLoadRef.current) {
+      if (sizeOption.length === 0) return; // 아직 계산 안 됨 → 그냥 대기
+      firstLoadRef.current = false; // 한 번이라도 값이 들어오면 이후부터 감시
+    }
+
     if (sizeOption.length === 0) {
-      // 현재 선택된 값 초기화
       setSize("");
       setSelectedIdx(-1);
       setCount(0);
@@ -201,7 +205,7 @@ export default function CustomizerPage() {
       }
       return;
     }
-    // 기존 선택값이 새 옵션에 없으면 첫번째로 재설정
+
     const idx = sizeOption.findIndex((v) => String(v) === size);
     if (idx === -1) {
       setSize(String(sizeOption[0]));

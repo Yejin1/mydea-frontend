@@ -1,7 +1,13 @@
 import "./globals.css";
-import Navbar from './components/Navbar';
+import Navbar from "./components/Navbar";
 import BidsSample from "./samples/bids/page";
 import { RidiBatang } from "./fonts";
+
+export const metadata = {
+  icons: {
+    icon: "/mydea_favicon.ico",
+  },
+};
 
 export default function RootLayout({
   children,
@@ -9,7 +15,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="ko">
+      <head />
       <body className={RidiBatang.variable}>
         <Navbar />
         {children}
