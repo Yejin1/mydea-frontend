@@ -90,6 +90,7 @@ export default function BeadsViewer({
     <Canvas
       camera={{ position: [0, 10, cameraDistance], fov: 35 }}
       dpr={[1, 1.5]}
+      gl={{ preserveDrawingBuffer: true }}
     >
       <ambientLight intensity={0.7} />
       <directionalLight position={[6, 10, 6]} intensity={1.2} />

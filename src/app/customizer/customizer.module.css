@@ -1,4 +1,13 @@
+.pageLayout {
+  display: flex;
+  gap: 32px;
+  padding: 32px;
+}
+
 .canvasArea {
+  flex: 1;
+  min-width: 300px;
+  position: relative;
   background: #f4f4f6;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.04);
@@ -74,4 +83,136 @@
   border-color: #ff8aa8;
   background: #ffe0f7;
   color: #d14a7a;
+}
+
+.rowAccessory {
+  margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.radioGroupInline {
+  display: flex;
+  gap: 12px;
+}
+
+.labelStrong {
+  font-weight: 800;
+}
+
+.labelStrongInline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 800;
+}
+
+.flowerOptions {
+  margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.colorsSection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.colorRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.colorInput,
+.colorInputSmall {
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.colorInput {
+  width: 40px;
+  height: 40px;
+}
+
+.colorInputSmall {
+  width: 32px;
+  height: 32px;
+}
+
+.colorBtn {
+  font-size: 18px;
+  padding: 0 8px;
+  border-radius: 4px;
+  border: none;
+  background: #eee;
+  cursor: pointer;
+  line-height: 1.2;
+}
+
+.colorBtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.tooltipWrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.sizeSection {
+  margin-bottom: 18px;
+}
+
+.sizeSelectWrap {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.sizeSelect {
+  padding: 8px;
+  border-radius: 6px;
+  font-weight: 500;
+  border: 1px solid #ddd;
+  background: #fff;
+}
+
+.actionButtons {
+  display: flex;
+  gap: 16px;
+  margin-top: auto;
+}
+
+.btnSave,
+.btnOrder {
+  flex: 1;
+  padding: 12px 0;
+  border-radius: 8px;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btnSave {
+  background: #eee;
+  color: #333;
+}
+
+.btnOrder {
+  background: #ff8aa8;
+  color: #fff;
+}
+
+.btnOrder:hover {
+  background: #ff6e94;
+}
+
+.btnSave:hover {
+  background: #e2e2e2;
 }

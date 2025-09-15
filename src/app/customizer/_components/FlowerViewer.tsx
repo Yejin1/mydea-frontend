@@ -1,6 +1,6 @@
 "use client";
 
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useThree } from "@react-three/fiber";
 import { Environment, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import { useMemo, useRef, useLayoutEffect } from "react";
@@ -210,6 +210,7 @@ export default function BeadFlowerViewer({
     <Canvas
       camera={{ position: [0, 10, cameraDistance], fov: 35 }}
       dpr={[1, 1.5]}
+      gl={{ preserveDrawingBuffer: true }}
     >
       <ambientLight intensity={0.8} />
       <directionalLight position={[6, 10, 6]} intensity={1.2} />
