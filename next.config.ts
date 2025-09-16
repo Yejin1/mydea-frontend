@@ -1,14 +1,7 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
+const config: NextConfig = {
   output: "standalone",
-  /* config options here */
 };
 
-module.exports = {
-  env: {
-    PORT: 8080,
-  },
-};
-
-export default nextConfig;
+export default config;
