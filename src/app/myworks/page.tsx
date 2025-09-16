@@ -1,4 +1,7 @@
 import WorksClient from "./WorksClient"; // 동적 오류 없으므로 확장자 및 expect-error 제거
+
+// 이 페이지는 항상 최신 데이터를 위해 서버 동적 렌더링 강제
+export const dynamic = "force-dynamic";
 import { WorkItem, WorksResult, PaginatedResponse } from "./types";
 
 // 타입은 types.ts 분리
@@ -22,11 +25,13 @@ async function fetchWorks(page = 0, size = 20): Promise<WorksResult> {
       try {
         bodyText = await res.text();
       } catch {}
-      console.error("[myworks] works fetch 실패", {
-        status: res.status,
-        url,
-        body: bodyText?.slice(0, 500),
-      });
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[myworks] works fetch 실패", {
+          status: res.status,
+          url,
+          body: bodyText?.slice(0, 500),
+        });
+      }
       return {
         items: [],
         total: 0,
@@ -41,7 +46,8 @@ async function fetchWorks(page = 0, size = 20): Promise<WorksResult> {
     try {
       data = await res.json();
     } catch (je) {
-      console.error("[myworks] JSON 파싱 실패", je);
+      if (process.env.NODE_ENV !== "production")
+        console.error("[myworks] JSON 파싱 실패", je);
       return {
         items: [],
         total: 0,
@@ -54,10 +60,12 @@ async function fetchWorks(page = 0, size = 20): Promise<WorksResult> {
     }
     // 1) Array 모드
     if (Array.isArray(data)) {
-      console.log("[myworks] works fetch success (array)", {
-        count: data.length,
-        first: data[0],
-      });
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[myworks] works fetch success (array)", {
+          count: data.length,
+          first: data[0],
+        });
+      }
       return {
         items: data as WorkItem[],
         total: data.length,
@@ -71,11 +79,13 @@ async function fetchWorks(page = 0, size = 20): Promise<WorksResult> {
     // 2) Paginated 객체 모드
     const p = data as Partial<PaginatedResponse>;
     if (p && Array.isArray(p.content)) {
-      console.log("[myworks] works fetch success (paginated)", {
-        count: p.content.length,
-        page: p.number,
-        total: p.totalElements,
-      });
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[myworks] works fetch success (paginated)", {
+          count: p.content.length,
+          page: p.number,
+          total: p.totalElements,
+        });
+      }
       return {
         items: p.content as WorkItem[],
         total:
@@ -89,7 +99,8 @@ async function fetchWorks(page = 0, size = 20): Promise<WorksResult> {
         last: !!p.last,
       };
     }
-    console.warn("[myworks] 예상 외 응답 형식 (unknown)", data);
+    if (process.env.NODE_ENV !== "production")
+      console.warn("[myworks] 예상 외 응답 형식 (unknown)", data);
     return {
       items: [],
       total: 0,
@@ -100,7 +111,8 @@ async function fetchWorks(page = 0, size = 20): Promise<WorksResult> {
       last: true,
     };
   } catch (e) {
-    console.error("[myworks] works fetch 네트워크 오류", e);
+    if (process.env.NODE_ENV !== "production")
+      console.error("[myworks] works fetch 네트워크 오류", e);
     return {
       items: [],
       total: 0,
