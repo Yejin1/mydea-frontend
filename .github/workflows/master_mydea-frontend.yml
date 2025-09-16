@@ -1,4 +1,4 @@
-name: Build & Deploy Next.js (standalone) to Azure App Service
+name: Build and deploy Node.js app to Azure Web App - mydea-frontend
 
 on:
   push: { branches: [ master ] }
@@ -10,36 +10,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
         with:
-          node-version: '20'
+          node-version: '20.x'
           cache: 'npm'
           cache-dependency-path: 'package-lock.json'
 
       - run: npm ci
       - run: npm run build
-        env:
-          NEXT_TELEMETRY_DISABLED: 1
 
-      - name: Package standalone output
-        run: |
-          rm -rf package && mkdir -p package
-          cp -r .next/standalone/* package/
-          mkdir -p package/.next/static
-          cp -r .next/static/* package/.next/static/
-          if [ -d public ]; then mkdir -p package/public && cp -r public/* package/public/; fi
-          # sanity check
-          test -f package/server.js && test -d package/node_modules && test -d package/.next/static
-
-      - name: Create release.zip
-        run: |
-          cd package && zip -r ../release.zip . && cd ..
-          unzip -l release.zip | sed -n '1,200p'
-
-      - uses: actions/upload-artifact@v4
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: release
-          path: release.zip
+          name: node-app
+          path: |
+            .next
+            public
+            package.json
+            package-lock.json
+            next.config.js
+            node_modules
 
   deploy:
     runs-on: ubuntu-latest
@@ -50,7 +41,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: release
+          name: node-app
           path: .
 
       - uses: azure/login@v2
@@ -59,9 +50,8 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_CF2F17DEA22049598F871624F2C13252 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_40ED88AB27D24EB795F402493C787FE4 }}
 
-      - name: Deploy to Azure Web App (Run-From-Package)
-        uses: azure/webapps-deploy@v3
+      - uses: azure/webapps-deploy@v3
         with:
           app-name: 'mydea-frontend'
-          package: 'release.zip'
-          type: 'zip'
+          slot-name: 'Production'
+          package: .
