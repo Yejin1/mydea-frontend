@@ -94,8 +94,13 @@ export default function WorksClient({
         // 성공 시 로컬 목록에서 제거
         setItems((prev) => prev.filter((w) => !selectedIds.includes(w.id)));
         setSelectedIds([]);
-      } catch (e: any) {
-        setDeleteError(e.message || "삭제 실패");
+      } catch (e: unknown) {
+        let msg = "삭제 실패";
+        if (e && typeof e === "object" && "message" in e) {
+          const m = (e as { message?: string }).message;
+          if (typeof m === "string" && m.trim()) msg = m;
+        }
+        setDeleteError(msg);
       }
     });
   };

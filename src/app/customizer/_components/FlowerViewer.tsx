@@ -1,6 +1,6 @@
 "use client";
 
-import { Canvas, useThree } from "@react-three/fiber";
+import { Canvas } from "@react-three/fiber";
 import { Environment, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import { useMemo, useRef, useLayoutEffect } from "react";
@@ -182,7 +182,17 @@ function BeadFlowerRing({
     mB.instanceMatrix.needsUpdate = true;
     if (refBead.current?.instanceColor)
       refBead.current.instanceColor.needsUpdate = true;
-  }, [flowers, ringRadius, beadOuter, petalOffset, phase, colorArr, zAxis]);
+  }, [
+    flowers,
+    ringRadius,
+    beadOuter,
+    petalOffset,
+    phase,
+    colorArr,
+    zAxis,
+    gapScale,
+    dummy,
+  ]);
 
   return (
     <>
@@ -198,7 +208,6 @@ function BeadFlowerRing({
 
 export default function BeadFlowerViewer({
   colors = ["#f09999", "#9dc99f", "#b0bcfc"],
-  count = 8,
   flowers = 3,
   ringRadius = 10,
   petalColor = "rgba(218, 81, 81, 1)",

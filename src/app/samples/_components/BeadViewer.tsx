@@ -2,7 +2,7 @@
 
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Environment } from "@react-three/drei";
-import { Suspense, useMemo, useRef,useLayoutEffect } from "react";
+import { Suspense, useMemo, useRef, useLayoutEffect } from "react";
 import * as THREE from "three";
 import styles from "./components.module.css";
 
@@ -32,7 +32,7 @@ function BeadRing({
       }),
     [color]
   );
-  const dummy = new THREE.Object3D();
+  const dummy = useMemo(() => new THREE.Object3D(), []);
 
   // 비즈 배치
   useLayoutEffect(() => {
@@ -43,7 +43,7 @@ function BeadRing({
       meshRef.current.setMatrixAt(i, dummy.matrix);
     }
     meshRef.current.instanceMatrix.needsUpdate = true;
-  }, [count, ringRadius]);
+  }, [count, ringRadius, dummy]);
 
   return <instancedMesh ref={meshRef} args={[geom, mat, count]} />;
 }
@@ -57,7 +57,8 @@ export default function BeadViewer({
 }) {
   return (
     <div className={styles.componentsContainer}>
-      <Canvas className={styles.canvas}
+      <Canvas
+        className={styles.canvas}
         camera={{ position: [0, 12, 28], fov: 50 }}
         dpr={[1, 1.5]} // 모바일 성능 보호
       >

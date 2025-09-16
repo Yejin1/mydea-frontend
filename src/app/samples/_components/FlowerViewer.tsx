@@ -147,7 +147,16 @@ function BeadFlowerRing({
     mB.instanceMatrix.needsUpdate = true;
     if (refBead.current!.instanceColor)
       refBead.current!.instanceColor.needsUpdate = true;
-  }, [flowers, ringRadius, petalOffset, phase, zAxis, beadStepAngle, colorArr]);
+  }, [
+    flowers,
+    ringRadius,
+    petalOffset,
+    phase,
+    zAxis,
+    beadStepAngle,
+    colorArr,
+    dummy,
+  ]);
 
   return (
     <>

@@ -34,7 +34,7 @@ function BeadRingTorus({
         thickness: 0.8,
         ior: 1.25,
       }),
-    [colors]
+    [color]
   );
 
   const dummy = useMemo(() => new THREE.Object3D(), []);
@@ -70,7 +70,7 @@ function BeadRingTorus({
       m.setColorAt(i, colorArr[i % colorArr.length]);
     }
     m.instanceMatrix.needsUpdate = true;
-  }, [count, ringRadius, upY, colors]);
+  }, [count, ringRadius, upY, colors, colorArr, dummy]);
 
   return <instancedMesh ref={meshRef} args={[geom, mat, count]} />;
 }

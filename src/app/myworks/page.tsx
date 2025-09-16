@@ -1,6 +1,4 @@
-import styles from "./myworks.module.css";
-// @ts-ignore 확실한 경로 지정 (TS 모듈 해석 이슈 회피)
-import WorksClient from "./WorksClient.tsx";
+import WorksClient from "./WorksClient"; // 동적 오류 없으므로 확장자 및 expect-error 제거
 import { WorkItem, WorksResult, PaginatedResponse } from "./types";
 
 // 타입은 types.ts 분리
@@ -117,18 +115,7 @@ async function fetchWorks(page = 0, size = 20): Promise<WorksResult> {
 
 // 라벨 변환은 클라이언트 컴포넌트에서 처리
 
-function formatDate(iso: string) {
-  try {
-    const d = new Date(iso);
-    return d.toLocaleDateString("ko-KR", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    });
-  } catch {
-    return iso;
-  }
-}
+// formatDate 함수는 클라이언트 측에서만 필요할 경우 WorksClient 쪽으로 두고 이곳에서는 제거
 
 export default async function MyWorksPage() {
   const result = await fetchWorks();

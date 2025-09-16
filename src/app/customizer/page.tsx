@@ -1,14 +1,14 @@
 "use client";
 import BeadsViewer from "./_components/BeadsViewer";
 import BeadFlowerViewer from "./_components/FlowerViewer";
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import styles from "./customizer.module.css";
 import { PretendardRegular, PretendardExtraBold } from "@/app/fonts";
 
 type Accessory = "ring" | "bracelet" | "necklace";
 
-export default function CustomizerPage() {
+function CustomizerContent() {
   const search = useSearchParams();
   const initialWorkId = search.get("workId");
   const [countOption, setCountOption] = useState<number[]>([]);
@@ -20,21 +20,19 @@ export default function CustomizerPage() {
   const [radius, setRadius] = useState<number>(0);
   const [count, setCount] = useState<number>(0);
   const [flowersOptions, setFlowersOptions] = useState<number[]>([]);
-  const [flowers, setFlowers] = useState<number>(6);
+  // flowers는 현재 파생 옵션에 사용되지 않으므로 제거 (필요 시 복구)
+  const flowers = 6;
   const [tooltipIdx, setTooltipIdx] = useState<number | null>(null);
   const [design, setDesign] = useState<"basic" | "flower">("basic");
   const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
+  // (saveError/saveSuccess 상태 제거: UI 미사용)
   const [imageUploading, setImageUploading] = useState(false);
-  const [imageUploadError, setImageUploadError] = useState<string | null>(null);
+  // (imageUploadError 상태 제거: UI 미사용)
   const [imageUploadedUrl, setImageUploadedUrl] = useState<string | null>(null);
   const [savedWorkId, setSavedWorkId] = useState<number | null>(null);
   const [patchingImage, setPatchingImage] = useState(false);
   const [loadingExisting, setLoadingExisting] = useState(false);
-  const [originalPreviewUrl, setOriginalPreviewUrl] = useState<string | null>(
-    null
-  );
+  // originalPreviewUrl: 이전 프리뷰와 변경 비교가 필요해지면 복구
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const isEditMode = !!savedWorkId; // savedWorkId 세팅되면 편집 모드로 간주
@@ -106,15 +104,16 @@ export default function CustomizerPage() {
           return;
         }
         const data = await res.json();
-        const normalizeAcc = (v: any): Accessory | null => {
+        const normalizeAcc = (v: unknown): Accessory | null => {
           const s = String(v).toLowerCase();
           return ["ring", "bracelet", "necklace"].includes(s)
             ? (s as Accessory)
             : null;
         };
-        const normalizeDesign = (v: any): "basic" | "flower" | null => {
+        const normalizeDesign = (v: unknown): "basic" | "flower" | null => {
           const s = String(v).toLowerCase();
-          return s === "basic" || s === "flower" ? (s as any) : null;
+          if (s === "basic" || s === "flower") return s;
+          return null;
         };
         if (data?.id) setSavedWorkId(data.id);
         if (Array.isArray(data?.colors) && data.colors.length > 0)
@@ -140,13 +139,17 @@ export default function CustomizerPage() {
         }
         if (data?.previewUrl) {
           setImageUploadedUrl(data.previewUrl);
-          setOriginalPreviewUrl(data.previewUrl);
         }
         attemptApplyLoadedSelection();
-      } catch (e: any) {
-        if (e?.name !== "AbortError") {
-          console.error("[customizer] load error", e);
-        }
+      } catch (e: unknown) {
+        if (
+          e &&
+          typeof e === "object" &&
+          "name" in e &&
+          (e as { name?: string }).name === "AbortError"
+        )
+          return;
+        console.error("[customizer] load error", e);
       } finally {
         if (!finished) setLoadingExisting(false);
       }
@@ -155,7 +158,6 @@ export default function CustomizerPage() {
       finished = true;
       controller.abort();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialWorkId, savedWorkId]);
 
   // 계산에 필요한 상수
@@ -352,7 +354,7 @@ export default function CustomizerPage() {
     workId?: number | string
   ): Promise<string | null> {
     setImageUploading(true);
-    setImageUploadError(null);
+    // 이미지 업로드 에러 상태 제거됨 (초기화 불필요)
     try {
       await new Promise((r) => requestAnimationFrame(() => r(null))); // 렌더 완료 대기
       const wrapper = canvasWrapperRef.current;
@@ -379,9 +381,10 @@ export default function CustomizerPage() {
       if (!data?.url) throw new Error("응답 url 누락");
       setImageUploadedUrl(data.url);
       return data.url as string;
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error("[screenshot] error", e);
-      setImageUploadError(e.message || "업로드 오류");
+      const msg = e instanceof Error ? e.message : "업로드 오류";
+      console.error("[customizer] 이미지 업로드 실패", msg);
       return null;
     } finally {
       setImageUploading(false);
@@ -627,9 +630,7 @@ export default function CustomizerPage() {
             className={styles.btnSave}
             disabled={saving || patchingImage || loadingExisting}
             onClick={async () => {
-              setSaveError(null);
-              setSaveSuccess(null);
-              setImageUploadError(null);
+              // saveError/saveSuccess/imageUploadError 상태 제거됨
               try {
                 setSaving(true);
                 const base =
@@ -673,7 +674,7 @@ export default function CustomizerPage() {
                   const newId = created?.id;
                   if (!newId) throw new Error("생성된 work id 없음");
                   setSavedWorkId(newId);
-                  setSaveSuccess("기본 정보 저장 완료");
+                  console.log("[customizer] 기본 정보 저장 완료");
                   // 썸네일 업로드
                   setPatchingImage(true);
                   const url = await captureAndUploadScreenshot(newId);
@@ -693,18 +694,27 @@ export default function CustomizerPage() {
                           t || `이미지 URL PATCH 실패 ${patchRes.status}`
                         );
                       }
-                      setSaveSuccess("저장 및 썸네일 업로드 완료");
-                    } catch (pe: any) {
-                      setSaveError(pe.message || "미리보기 URL 갱신 실패");
+                      console.log("[customizer] 저장 및 썸네일 업로드 완료");
+                    } catch (pe: unknown) {
+                      const msg =
+                        pe instanceof Error
+                          ? pe.message
+                          : "미리보기 URL 갱신 실패";
+                      console.error(
+                        "[customizer] 썸네일 업로드 실패 메시지",
+                        msg
+                      );
                     }
                   } else {
-                    setSaveError("썸네일 업로드 실패(기본 정보는 저장됨)");
+                    console.error(
+                      "[customizer] 썸네일 업로드 실패(기본 정보는 저장됨)"
+                    );
                   }
                 } else {
                   // 수정
                   const id = savedWorkId;
                   if (!id) throw new Error("편집 ID 누락");
-                  const patchBody: Record<string, any> = {
+                  const patchBody = {
                     name: `${design === "flower" ? "플라워" : "베이직"} ${
                       accessory === "ring"
                         ? "반지"
@@ -733,10 +743,11 @@ export default function CustomizerPage() {
                     const t = await patchRes.text();
                     throw new Error(t || `편집 PATCH 실패 ${patchRes.status}`);
                   }
-                  setSaveSuccess("변경 사항 저장 완료");
+                  console.log("[customizer] 변경 사항 저장 완료");
                 }
-              } catch (e: any) {
-                setSaveError(e.message || "저장 실패");
+              } catch (e: unknown) {
+                const msg = e instanceof Error ? e.message : "저장 실패";
+                console.error("[customizer] 저장 실패 메시지", msg);
               } finally {
                 setSaving(false);
                 setPatchingImage(false);
@@ -790,8 +801,9 @@ export default function CustomizerPage() {
                   }
                   // 목록 페이지로 이동
                   window.location.href = "/myworks";
-                } catch (e: any) {
-                  setDeleteError(e.message || "삭제 실패");
+                } catch (pe: unknown) {
+                  const msg = pe instanceof Error ? pe.message : "삭제 실패";
+                  setDeleteError(msg);
                 } finally {
                   setDeleting(false);
                 }
@@ -839,10 +851,14 @@ export default function CustomizerPage() {
                     const t = await patchRes.text();
                     throw new Error(t || `PATCH 실패 ${patchRes.status}`);
                   }
-                  setSaveSuccess("썸네일 재업로드 완료");
-                  setSaveError(null);
-                } catch (pe: any) {
-                  setSaveError(pe.message || "썸네일 PATCH 실패(previewUrl)");
+                  console.log("[customizer] 썸네일 재업로드 완료");
+                  // 이전 saveError 초기화 제거
+                } catch (pe: unknown) {
+                  const msg =
+                    pe instanceof Error
+                      ? pe.message
+                      : "썸네일 PATCH 실패(previewUrl)";
+                  console.error("[customizer] 썸네일 재업로드 실패", msg);
                 } finally {
                   setPatchingImage(false);
                 }
@@ -869,5 +885,13 @@ export default function CustomizerPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CustomizerPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 32 }}>로딩중...</div>}>
+      <CustomizerContent />
+    </Suspense>
   );
 }

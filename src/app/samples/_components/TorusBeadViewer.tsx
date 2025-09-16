@@ -69,7 +69,7 @@ function BeadRingTorus({
       m.setColorAt(i, colorArr[i % colorArr.length]);
     }
     m.instanceMatrix.needsUpdate = true;
-  }, [count, ringRadius, upY]);
+  }, [count, ringRadius, upY, colorArr, dummy]);
 
   return <instancedMesh ref={meshRef} args={[geom, mat, count]} />;
 }

@@ -1,6 +1,5 @@
 import "./globals.css";
 import Navbar from "./components/Navbar";
-import BidsSample from "./samples/bids/page";
 import { RidiBatang } from "./fonts";
 
 export const metadata = {

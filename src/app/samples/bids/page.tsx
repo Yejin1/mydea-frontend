@@ -1,15 +1,10 @@
 "use client";
-import { useControls } from "leva";
 import styles from "./page.module.css";
-import BeadViewer from "../_components/BeadViewer";
 import TorusBeadViewer from "../_components/TorusBeadViewer";
 import BeadFlowerViewer from "../_components/FlowerViewer";
 
 export default function Playground() {
-  const { count, color } = useControls({
-    count: { value: 60, min: 10, max: 200, step: 1 },
-    color: { value: "#ff6699" },
-  });
+  // 컨트롤 패널 제거 (count/color 미사용)
 
   return (
     <div className={styles.bidsContainer}>

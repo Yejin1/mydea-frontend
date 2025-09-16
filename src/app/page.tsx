@@ -1,4 +1,3 @@
-import Image from "next/image";
 import styles from "./page.module.css";
 import { RidiBatang } from "@/app/fonts"; // 리디바탕 폰트 변수 import
 
