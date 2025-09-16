@@ -20,6 +20,12 @@ jobs:
       - run: npm ci
       - run: npm run build
 
+      - name: Verify outputs
+        run: |
+          test -d .next || (echo "X .next missing"; exit 1)
+          test -f node_modules/.bin/next || (echo "X next binary missing"; ls -al node_modules/.bin; exit 1)
+          du -sh .next node_modules || true
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -55,4 +61,5 @@ jobs:
           app-name: 'mydea-frontend'
           slot-name: 'Production'
           package: .
+
 
