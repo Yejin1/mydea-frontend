@@ -190,7 +190,8 @@
 }
 
 .btnSave,
-.btnOrder {
+.btnOrder,
+.btnDelete {
   flex: 1;
   padding: 12px 0;
   border-radius: 8px;
@@ -209,8 +210,17 @@
   color: #fff;
 }
 
+.btnDelete {
+  background: #ff4d4f;
+  color: #fff;
+}
+
 .btnOrder:hover {
   background: #ff6e94;
+}
+
+.btnDelete:hover {
+  background: #e64042;
 }
 
 .btnSave:hover {

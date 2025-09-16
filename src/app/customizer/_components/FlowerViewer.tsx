@@ -172,7 +172,6 @@ function BeadFlowerRing({
         const beadIdx = f * beadCount + j;
         mB.setMatrixAt(beadIdx, dummy.matrix);
         mB.setColorAt(beadIdx, colorArr[j]);
-        console.log(colorArr[j]);
 
         prevHalf = beadHalfAng; // 다음 루프부터는 '이전'이 비즈
       }

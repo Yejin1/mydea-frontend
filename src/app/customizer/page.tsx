@@ -2,12 +2,15 @@
 import BeadsViewer from "./_components/BeadsViewer";
 import BeadFlowerViewer from "./_components/FlowerViewer";
 import { useEffect, useMemo, useState, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import styles from "./customizer.module.css";
 import { PretendardRegular, PretendardExtraBold } from "@/app/fonts";
 
 type Accessory = "ring" | "bracelet" | "necklace";
 
 export default function CustomizerPage() {
+  const search = useSearchParams();
+  const initialWorkId = search.get("workId");
   const [countOption, setCountOption] = useState<number[]>([]);
   const [radiusOption, setRadiusOption] = useState<number[]>([]);
   const [sizeOption, setSizeOption] = useState<number[]>([]);
@@ -28,6 +31,13 @@ export default function CustomizerPage() {
   const [imageUploadedUrl, setImageUploadedUrl] = useState<string | null>(null);
   const [savedWorkId, setSavedWorkId] = useState<number | null>(null);
   const [patchingImage, setPatchingImage] = useState(false);
+  const [loadingExisting, setLoadingExisting] = useState(false);
+  const [originalPreviewUrl, setOriginalPreviewUrl] = useState<string | null>(
+    null
+  );
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const isEditMode = !!savedWorkId; // savedWorkId 세팅되면 편집 모드로 간주
 
   const [flowerColors, setFlowerColors] = useState({
     petal: "#ffb6c1",
@@ -39,15 +49,122 @@ export default function CustomizerPage() {
   const [selectedIdx, setSelectedIdx] = useState(0);
   const firstLoadRef = useRef(true);
   const canvasWrapperRef = useRef<HTMLDivElement | null>(null);
+  // 로드된 작업의 sizeIndex/radius 적용 1회 반영용 refs
+  const loadedSizeIndexRef = useRef<number | null>(null);
+  const loadedRadiusRef = useRef<number | null>(null);
+  const loadedAppliedRef = useRef(false);
+  // 최신 옵션 배열 값을 즉시 참조하기 위한 refs (로드 직후 적용용)
+  const sizeOptionRef = useRef<number[]>([]);
+  const countOptionRef = useRef<number[]>([]);
+  const radiusOptionRef = useRef<number[]>([]);
 
+  // 옵션 상태 변경 시 ref 동기화
+  useEffect(() => {
+    sizeOptionRef.current = sizeOption;
+  }, [sizeOption]);
+  useEffect(() => {
+    countOptionRef.current = countOption;
+  }, [countOption]);
+  useEffect(() => {
+    radiusOptionRef.current = radiusOption;
+  }, [radiusOption]);
+
+  // 로드된 sizeIndex 를 즉시 적용 (옵션 이미 계산된 경우)
+  const attemptApplyLoadedSelection = () => {
+    if (loadedAppliedRef.current) return; // 이미 적용됨
+    if (loadedSizeIndexRef.current === null) return; // 적용할 값 없음
+    const so = sizeOptionRef.current;
+    const co = countOptionRef.current;
+    const ro = radiusOptionRef.current;
+    if (!so.length || !co.length || !ro.length) return; // 옵션 아직 준비 안됨
+    let idx = loadedSizeIndexRef.current;
+    if (idx < 0 || idx >= so.length) idx = 0;
+    setSelectedIdx(idx);
+    setSize(String(so[idx]));
+    setCount(co[idx]);
+    setRadius(ro[idx]);
+    loadedAppliedRef.current = true;
+  };
+
+  // 기존 작업 불러오기 (StrictMode 중복 호출 시 AbortError 무시)
+  useEffect(() => {
+    if (!initialWorkId) return;
+    if (savedWorkId) return;
+    const controller = new AbortController();
+    let finished = false;
+    (async () => {
+      try {
+        setLoadingExisting(true);
+        const base =
+          process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+        const res = await fetch(`${base}/api/works/${initialWorkId}`, {
+          signal: controller.signal,
+        });
+        if (!res.ok) {
+          if (res.status !== 499)
+            console.error("[customizer] work load 실패", res.status);
+          return;
+        }
+        const data = await res.json();
+        const normalizeAcc = (v: any): Accessory | null => {
+          const s = String(v).toLowerCase();
+          return ["ring", "bracelet", "necklace"].includes(s)
+            ? (s as Accessory)
+            : null;
+        };
+        const normalizeDesign = (v: any): "basic" | "flower" | null => {
+          const s = String(v).toLowerCase();
+          return s === "basic" || s === "flower" ? (s as any) : null;
+        };
+        if (data?.id) setSavedWorkId(data.id);
+        if (Array.isArray(data?.colors) && data.colors.length > 0)
+          setColors(data.colors);
+        // 새로운 'accessory' 키와 과거 'workType' 키 모두 허용
+        const normAcc = normalizeAcc(data?.accessory ?? data?.workType);
+        if (normAcc) setAccessory(normAcc);
+        // 새로운 'design' 키와 과거 'designType' 키 모두 허용
+        const normDes = normalizeDesign(data?.design ?? data?.designType);
+        if (normDes) setDesign(normDes);
+        if (data?.flowerColors?.petal || data?.flowerColors?.center) {
+          setFlowerColors({
+            petal: data?.flowerColors?.petal || "#ffb6c1",
+            center: data?.flowerColors?.center || "#ffe066",
+          });
+        }
+        if (typeof data?.sizeIndex === "number")
+          loadedSizeIndexRef.current = data.sizeIndex;
+        if (typeof data?.autoSize === "number") setAutoSize(data.autoSize);
+        if (typeof data?.radiusMm === "number") {
+          loadedRadiusRef.current = data.radiusMm;
+          setRadius(data.radiusMm);
+        }
+        if (data?.previewUrl) {
+          setImageUploadedUrl(data.previewUrl);
+          setOriginalPreviewUrl(data.previewUrl);
+        }
+        attemptApplyLoadedSelection();
+      } catch (e: any) {
+        if (e?.name !== "AbortError") {
+          console.error("[customizer] load error", e);
+        }
+      } finally {
+        if (!finished) setLoadingExisting(false);
+      }
+    })();
+    return () => {
+      finished = true;
+      controller.abort();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialWorkId, savedWorkId]);
+
+  // 계산에 필요한 상수
   const beadOuter = 0.15;
   const gapPadding = 0.9;
   const beadWorldGap = 2 * beadOuter + gapPadding;
-
   const petalOffset = 1.4;
   const clearanceMargin = 0.2;
   const flowerClearanceWorld = petalOffset + beadOuter + clearanceMargin;
-
   const flowerGapRatio = 0.3;
 
   function computeOptions(
@@ -79,20 +196,13 @@ export default function CustomizerPage() {
       for (let c = start; c <= maxCount; c += patternLen) counts.push(c);
       const radii = counts.map(countToRadius);
       const sizes = counts.map(countToSizeMm);
-      const R0 = radii[0] ?? 0;
-      return {
-        counts,
-        radii,
-        sizes,
-        auto: sizes[0] ?? 0,
-        flowersArr: [],
-      };
+      return { counts, radii, sizes, auto: sizes[0] ?? 0, flowersArr: [] };
     }
 
     // 꽃 모드
-    // 한 개의 꽃 세그먼트(꽃 + 그 주변 비즈들)가 차지하는 기본 선형 길이
+    // 한 개의 꽃 세그먼트(꽃 + 주변 비즈들)가 차지하는 기본 선형 길이 계산
     const baseLinear = flowerClearanceWorld + colorCount * beadWorldGap; // 기본 길이(L_base)
-    const gapRatio = flowerGapRatio; // 조정 가능한 간격 비율
+    const gapRatio = flowerGapRatio; // 간격 비율
     const L_total_per_segment = baseLinear * (1 + gapRatio); // 세그먼트 총 길이 = (꽃 + 비즈) + 간격
 
     const flowersMin = 4;
@@ -104,12 +214,12 @@ export default function CustomizerPage() {
     const sizes: number[] = [];
 
     for (let F = flowersMin; F <= flowersMax; F++) {
-      // Ideal radius from linear segmentation (uniform gap maintained)
+      // 일정 간격을 유지하며 선형 길이로부터 이상적인 반지름 계산
       const R_ideal = (L_total_per_segment * F) / (2 * Math.PI);
-      // Snap to discrete count (count = R * 5) per existing rule
+      // 기존 규칙(count = R * 5)에 맞추어 정수 비즈 개수로 스냅
       const countApprox = Math.round(R_ideal * 5);
       if (countApprox < minCount || countApprox > maxCount) continue;
-      const R = countApprox / 5; // snapped radius actually used
+      const R = countApprox / 5; // 실제 사용되는 스냅된 반지름
       const sizeMm = countToSizeMm(countApprox);
       flowersArr.push(F);
       counts.push(countApprox);
@@ -126,7 +236,7 @@ export default function CustomizerPage() {
     };
   }
 
-  //accessory, colors.length 변화시에만 파생 옵션 재계산
+  // accessory, colors.length, design, flowers 변화시에만 파생 옵션 재계산
   const derived = useMemo(
     () =>
       computeOptions(
@@ -147,7 +257,7 @@ export default function CustomizerPage() {
     ]
   );
 
-  // 파생값을 한 번에 교체
+  // 파생값을 한 번에 반영
   useEffect(() => {
     setCountOption(derived.counts);
     setRadiusOption(derived.radii);
@@ -158,46 +268,39 @@ export default function CustomizerPage() {
     }
   }, [derived, design]);
 
-  // 옵션 배열이 바뀔 때마다 첫 번째 값 자동 세팅
+  // 옵션 배열 갱신 시 초기 선택값 반영 (로드된 작업 있으면 1회 우선 적용)
   useEffect(() => {
     if (
-      sizeOption.length > 0 &&
-      countOption.length > 0 &&
-      radiusOption.length > 0
-    ) {
-      setSize(String(sizeOption[0]));
-      setSelectedIdx(0);
-      setCount(countOption[0]);
-      setRadius(radiusOption[0]);
-    }
-  }, [sizeOption, countOption, radiusOption]);
+      sizeOption.length === 0 ||
+      countOption.length === 0 ||
+      radiusOption.length === 0
+    )
+      return;
 
-  useEffect(() => {
-    if (design === "flower") return; // 기본 모드에서만 실행
-    const newSizeOptions: number[] = [];
-    // 예시: 악세사리 종류와 색상 개수에 따라 옵션 생성
-    let minCount = 24,
-      maxCount = 36;
-    if (accessory === "bracelet") {
-      minCount = 90;
-      maxCount = 126;
+    // 로드된 sizeIndex 가 있다면 1회 우선 적용
+    if (!loadedAppliedRef.current && loadedSizeIndexRef.current !== null) {
+      let idx = loadedSizeIndexRef.current;
+      if (idx < 0 || idx >= sizeOption.length) idx = 0;
+      setSelectedIdx(idx);
+      setSize(String(sizeOption[idx]));
+      setCount(countOption[idx]);
+      setRadius(radiusOption[idx]);
+      loadedAppliedRef.current = true;
+      return; // 초기 로드 적용 후 종료
     }
-    if (accessory === "necklace") {
-      minCount = 228;
-      maxCount = 282;
-    }
-    let cnt = minCount;
-    if (cnt % colors.length !== 0)
-      cnt = Math.ceil(minCount / colors.length) * colors.length;
-    for (; cnt <= maxCount; cnt += colors.length) {
-      newSizeOptions.push(Math.round((cnt * 5) / 3));
-    }
-    setSizeOption(newSizeOptions);
-  }, [accessory, colors.length, design]);
+
+    // 일반 흐름: selectedIdx 범위 보정 후 동기화
+    let current = selectedIdx;
+    if (current < 0 || current >= sizeOption.length) current = 0;
+    setSelectedIdx(current);
+    setSize(String(sizeOption[current]));
+    setCount(countOption[current]);
+    setRadius(radiusOption[current]);
+  }, [sizeOption, countOption, radiusOption, selectedIdx]);
 
   // 사이즈 옵션이 비었을 때 경고 & 선택값 초기화
   useEffect(() => {
-    // 최초 로딩 동안(sizeOption 아직 미계산) 경고 방지
+    // 최초 로딩 동안(sizeOption 미계산) 경고 방지
     if (firstLoadRef.current) {
       if (sizeOption.length === 0) return; // 아직 계산 안 됨 → 그냥 대기
       firstLoadRef.current = false; // 한 번이라도 값이 들어오면 이후부터 감시
@@ -223,7 +326,7 @@ export default function CustomizerPage() {
     }
   }, [sizeOption, size, countOption, radiusOption]);
 
-  // 색상 핸들러
+  // 색상 변경/추가/삭제 핸들러
   const handleColorChange = (idx: number, value: string) => {
     setColors((prev) => prev.map((c, i) => (i === idx ? value : c)));
   };
@@ -235,7 +338,7 @@ export default function CustomizerPage() {
       setColors((prev) => prev.filter((_, i) => i !== idx));
   };
 
-  // cameraDistance 계산: 선택된 사이즈 값에 따라 동적으로 설정
+  // cameraDistance: 선택된 사이즈 기반 동적 계산
   const cameraDistance = (() => {
     const numSize = Number(size);
     if (isNaN(numSize)) return 12; // 기본값
@@ -244,7 +347,7 @@ export default function CustomizerPage() {
     return numSize * 2.2;
   })();
 
-  // three.js 캔버스 스크린샷 -> 서버 API (/api/upload) -> Azure (server-side)
+  // three.js 캔버스 스크린샷 업로드
   async function captureAndUploadScreenshot(
     workId?: number | string
   ): Promise<string | null> {
@@ -256,12 +359,12 @@ export default function CustomizerPage() {
       if (!wrapper) throw new Error("canvas wrapper 없음");
       const canvas = wrapper.querySelector("canvas");
       if (!canvas) throw new Error("canvas 요소 탐색 실패");
-      console.log("[screenshot] canvas size", canvas.width, canvas.height);
+      // debug 로그 제거 (canvas size)
       const blob: Blob | null = await new Promise((resolve) =>
         canvas.toBlob((b) => resolve(b), "image/png", 0.95)
       );
       if (!blob) throw new Error("toBlob 실패");
-      console.log("[screenshot] blob size", blob.size);
+      // debug 로그 제거 (blob size)
       const form = new FormData();
       form.append("file", blob, "capture.png");
       if (workId !== undefined && workId !== null) {
@@ -287,7 +390,7 @@ export default function CustomizerPage() {
 
   return (
     <div className={styles.pageLayout}>
-      {/* 왼쪽 BeadsViewer */}
+      {/* 미리보기 */}
       <div className={`${styles.canvasArea}`} ref={canvasWrapperRef}>
         {design === "flower" ? (
           <BeadFlowerViewer
@@ -309,9 +412,9 @@ export default function CustomizerPage() {
         )}
       </div>
 
-      {/* 오른쪽 설정 박스 */}
+      {/* 설정 패널 */}
       <div className={`${styles.settingsBox} ${PretendardRegular.className}`}>
-        {/* 악세사리 종류 선택 */}
+        {/* 악세사리 종류 */}
         <div className={styles.rowAccessory}>
           <label
             className={`${PretendardExtraBold.variable} ${styles.labelStrong}`}
@@ -522,7 +625,7 @@ export default function CustomizerPage() {
           <button
             type="button"
             className={styles.btnSave}
-            disabled={saving || patchingImage}
+            disabled={saving || patchingImage || loadingExisting}
             onClick={async () => {
               setSaveError(null);
               setSaveSuccess(null);
@@ -532,66 +635,105 @@ export default function CustomizerPage() {
                 const base =
                   process.env.NEXT_PUBLIC_API_BASE_URL ||
                   "http://localhost:8080";
-                // 1) 이미지 없이 work 생성
-                const createPayload = {
-                  userId: 1,
-                  name: `${design === "flower" ? "플라워" : "베이직"} ${
-                    accessory === "ring"
-                      ? "반지"
-                      : accessory === "bracelet"
-                      ? "팔찌"
-                      : "목걸이"
-                  }`,
-                  workType: accessory,
-                  designType: design,
-                  colors: colors,
-                  flowerPetal: flowerColors.petal,
-                  flowerCenter: flowerColors.center,
-                  autoSize: autoSize,
-                  radiusMm: radius,
-                  sizeIndex: selectedIdx,
-                  previewUrl: null,
-                };
-                const createRes = await fetch(`${base}/api/works`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify(createPayload),
-                });
-                if (!createRes.ok) {
-                  const txt = await createRes.text();
-                  throw new Error(
-                    txt || `Work 생성 실패 HTTP ${createRes.status}`
-                  );
-                }
-                const created = await createRes.json();
-                const newId = created?.id;
-                if (!newId) throw new Error("생성된 work id 없음");
-                setSavedWorkId(newId);
-                setSaveSuccess("기본 정보 저장 완료");
-
-                // 2) 캔버스 업로드 (workId 기반 파일명)
-                setPatchingImage(true);
-                const url = await captureAndUploadScreenshot(newId);
-                if (url) {
-                  // 3) PATCH 로 previewUrl 업데이트 (백엔드에 PATCH 존재 가정)
-                  try {
-                    const patchRes = await fetch(`${base}/api/works/${newId}`, {
-                      method: "PATCH",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ previewUrl: url }),
-                    });
-                    if (!patchRes.ok) {
-                      const t = await patchRes.text();
-                      throw new Error(
-                        t || `이미지 URL PATCH 실패 ${patchRes.status}`
+                if (!isEditMode) {
+                  // 생성
+                  const createPayload = {
+                    userId: 1,
+                    name: `${design === "flower" ? "플라워" : "베이직"} ${
+                      accessory === "ring"
+                        ? "반지"
+                        : accessory === "bracelet"
+                        ? "팔찌"
+                        : "목걸이"
+                    }`,
+                    accessory: accessory,
+                    design: design,
+                    colors: colors,
+                    flowerColors: {
+                      petal: flowerColors.petal,
+                      center: flowerColors.center,
+                    },
+                    autoSize: autoSize,
+                    radiusMm: radius,
+                    sizeIndex: selectedIdx,
+                    previewUrl: null,
+                  };
+                  const createRes = await fetch(`${base}/api/works`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(createPayload),
+                  });
+                  if (!createRes.ok) {
+                    const txt = await createRes.text();
+                    throw new Error(
+                      txt || `Work 생성 실패 HTTP ${createRes.status}`
+                    );
+                  }
+                  const created = await createRes.json();
+                  const newId = created?.id;
+                  if (!newId) throw new Error("생성된 work id 없음");
+                  setSavedWorkId(newId);
+                  setSaveSuccess("기본 정보 저장 완료");
+                  // 썸네일 업로드
+                  setPatchingImage(true);
+                  const url = await captureAndUploadScreenshot(newId);
+                  if (url) {
+                    try {
+                      const patchRes = await fetch(
+                        `${base}/api/works/${newId}`,
+                        {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ previewUrl: url }),
+                        }
                       );
+                      if (!patchRes.ok) {
+                        const t = await patchRes.text();
+                        throw new Error(
+                          t || `이미지 URL PATCH 실패 ${patchRes.status}`
+                        );
+                      }
+                      setSaveSuccess("저장 및 썸네일 업로드 완료");
+                    } catch (pe: any) {
+                      setSaveError(pe.message || "미리보기 URL 갱신 실패");
                     }
-                    setSaveSuccess("저장 및 썸네일 업로드 완료");
-                  } catch (pe: any) {
-                    setSaveError(pe.message || "미리보기 URL 갱신 실패");
+                  } else {
+                    setSaveError("썸네일 업로드 실패(기본 정보는 저장됨)");
                   }
                 } else {
-                  setSaveError("썸네일 업로드 실패(기본 정보는 저장됨)");
+                  // 수정
+                  const id = savedWorkId;
+                  if (!id) throw new Error("편집 ID 누락");
+                  const patchBody: Record<string, any> = {
+                    name: `${design === "flower" ? "플라워" : "베이직"} ${
+                      accessory === "ring"
+                        ? "반지"
+                        : accessory === "bracelet"
+                        ? "팔찌"
+                        : "목걸이"
+                    }`,
+                    accessory: accessory,
+                    design: design,
+                    colors: colors,
+                    flowerColors: {
+                      petal: flowerColors.petal,
+                      center: flowerColors.center,
+                    },
+                    autoSize: autoSize,
+                    radiusMm: radius,
+                    sizeIndex: selectedIdx,
+                  };
+                  // 기존 썸네일 보존. 재업로드를 별도 버튼으로 유지.
+                  const patchRes = await fetch(`${base}/api/works/${id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(patchBody),
+                  });
+                  if (!patchRes.ok) {
+                    const t = await patchRes.text();
+                    throw new Error(t || `편집 PATCH 실패 ${patchRes.status}`);
+                  }
+                  setSaveSuccess("변경 사항 저장 완료");
                 }
               } catch (e: any) {
                 setSaveError(e.message || "저장 실패");
@@ -601,16 +743,69 @@ export default function CustomizerPage() {
               }
             }}
           >
-            {saving
+            {loadingExisting
+              ? "불러오는 중..."
+              : saving
               ? "저장중..."
               : patchingImage
               ? "이미지 반영중..."
+              : isEditMode
+              ? "변경 저장"
               : "저장하기"}
           </button>
-          <button type="button" className={styles.btnOrder} disabled={saving}>
+          <button
+            type="button"
+            className={styles.btnOrder}
+            disabled={saving}
+            onClick={() => {
+              if (saving) return;
+              alert("주문 기능은 준비중입니다.");
+            }}
+          >
             주문하기
           </button>
+          {isEditMode && (
+            <button
+              type="button"
+              className={styles.btnDelete}
+              disabled={saving || deleting}
+              onClick={async () => {
+                if (!savedWorkId || deleting) return;
+                if (!confirm("이 작업을 삭제할까요? 되돌릴 수 없습니다."))
+                  return;
+                const base =
+                  process.env.NEXT_PUBLIC_API_BASE_URL ||
+                  "http://localhost:8080";
+                try {
+                  setDeleteError(null);
+                  setDeleting(true);
+                  const res = await fetch(`${base}/api/works`, {
+                    method: "DELETE",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify([savedWorkId]),
+                  });
+                  if (!res.ok) {
+                    const txt = await res.text();
+                    throw new Error(txt || `삭제 실패 (${res.status})`);
+                  }
+                  // 목록 페이지로 이동
+                  window.location.href = "/myworks";
+                } catch (e: any) {
+                  setDeleteError(e.message || "삭제 실패");
+                } finally {
+                  setDeleting(false);
+                }
+              }}
+            >
+              {deleting ? "삭제중..." : "삭제"}
+            </button>
+          )}
         </div>
+        {deleteError && (
+          <div style={{ color: "#ff4d4f", fontSize: 12, marginTop: 4 }}>
+            {deleteError}
+          </div>
+        )}
         {/* 메시지 출력 제거됨 */}
         <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
           <button
