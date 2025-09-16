@@ -12,6 +12,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend 
     permissions:
       contents: read #This is required for actions/checkout
 
@@ -37,6 +40,9 @@ jobs:
 
   deploy:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
     needs: build
     permissions:
       id-token: write #This is required for requesting the JWT
@@ -61,5 +67,6 @@ jobs:
         with:
           app-name: 'mydea-frontend'
           slot-name: 'Production'
-          package: .
+          package: 'frontend'
+
           
