@@ -4,7 +4,6 @@ on:
   push: { branches: [ master ] }
   workflow_dispatch:
 
-# 동시에 여러 배포가 겹치지 않도록 (권장)
 concurrency:
   group: mydea-frontend-prod
   cancel-in-progress: true
@@ -30,19 +29,15 @@ jobs:
         env:
           NEXT_TELEMETRY_DISABLED: 1
 
-      # ── 강제 검증: standalone 산출물 없으면 실패 ─────────────────────────────
       - name: Assert standalone output exists
         run: |
-          echo "== .next layout =="
-          ls -al .next || true
+          ls -al .next
           if [ ! -d ".next/standalone" ]; then
-            echo "❌ .next/standalone not found (standalone 빌드가 안 나왔어요)"
+            echo "❌ .next/standalone not found"
             exit 1
           fi
           test -f .next/standalone/server.js
-          test -d .next/static
 
-      # ── 패키징: ZIP 최상단이 server.js / node_modules 가 되도록 ─────────────
       - name: Package standalone output
         run: |
           rm -rf package && mkdir -p package
@@ -50,17 +45,15 @@ jobs:
           mkdir -p package/.next/static
           cp -r .next/static/* package/.next/static/
           if [ -d public ]; then mkdir -p package/public && cp -r public/* package/public/; fi
-          echo "== packaged root =="
-          ls -al package | sed -n '1,120p'
-          test -f package/server.js && test -d package/node_modules && test -d package/.next/static
+          ls -al package
 
       - name: Create release.zip
         run: |
-          (cd package && zip -r ../release.zip .)
+          cd package && zip -r ../release.zip . && cd ..
           echo "== zip top =="
-          unzip -l release.zip | sed -n '1,60p'
+          unzip -l release.zip | head -20
 
-      - name: Upload artifact (zip)
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: release
@@ -76,7 +69,13 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: release
-          path: .
+          path: ./release   # zip을 ./release/release.zip 으로 다운로드
+
+      - name: Verify artifact
+        run: |
+          echo "== check downloaded zip =="
+          ls -al ./release
+          unzip -l ./release/release.zip | head -20
 
       - name: Azure login (OIDC)
         uses: azure/login@v2
@@ -89,5 +88,5 @@ jobs:
         uses: azure/webapps-deploy@v3
         with:
           app-name: mydea-frontend
-          package: release.zip      # ← 반드시 zip 파일
+          package: ./release/release.zip   # ← zip 경로 확실히 지정
           type: zip
