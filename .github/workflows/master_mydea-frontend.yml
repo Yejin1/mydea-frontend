@@ -4,6 +4,7 @@ on:
   push: { branches: [ master ] }
   workflow_dispatch:
 
+# 동시에 여러 배포가 겹치지 않도록 (권장)
 concurrency:
   group: mydea-frontend-prod
   cancel-in-progress: true
@@ -29,32 +30,35 @@ jobs:
         env:
           NEXT_TELEMETRY_DISABLED: 1
 
+      # ── 강제 검증: standalone 산출물 없으면 실패 ─────────────────────────────
+      - name: Assert standalone output exists
+        run: |
+          echo "== .next layout =="
+          ls -al .next || true
+          if [ ! -d ".next/standalone" ]; then
+            echo "❌ .next/standalone not found (standalone 빌드가 안 나왔어요)"
+            exit 1
+          fi
+          test -f .next/standalone/server.js
+          test -d .next/static
+
+      # ── 패키징: ZIP 최상단이 server.js / node_modules 가 되도록 ─────────────
       - name: Package standalone output
         run: |
           rm -rf package && mkdir -p package
-          
-          # .next/standalone 내용을 ZIP 최상단에 복사
-          
           cp -r .next/standalone/* package/
-          
-          # 정적 파일 병합
-          
           mkdir -p package/.next/static
-          
           cp -r .next/static/* package/.next/static/
-          
-          # public 포함(있으면)
-          
           if [ -d public ]; then mkdir -p package/public && cp -r public/* package/public/; fi
-          
-          # sanity check
-          
+          echo "== packaged root =="
+          ls -al package | sed -n '1,120p'
           test -f package/server.js && test -d package/node_modules && test -d package/.next/static
 
       - name: Create release.zip
         run: |
-          cd package && zip -r ../release.zip . && cd ..
-          unzip -l release.zip | sed -n '1,80p'
+          (cd package && zip -r ../release.zip .)
+          echo "== zip top =="
+          unzip -l release.zip | sed -n '1,60p'
 
       - name: Upload artifact (zip)
         uses: actions/upload-artifact@v4
@@ -85,6 +89,5 @@ jobs:
         uses: azure/webapps-deploy@v3
         with:
           app-name: mydea-frontend
-          package: release.zip
+          package: release.zip      # ← 반드시 zip 파일
           type: zip
-
