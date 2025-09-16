@@ -1,83 +1,54 @@
 name: Build and deploy Node.js app to Azure Web App - mydea-frontend
 
 on:
-  push:
-    branches: [ master ]
-    paths:
-      - "**.yml"
-      - "package.json"
-      - "package-lock.json"
-      - "next.config.*"
-      - "app/**"
-      - "pages/**"
-      - "public/**"
-      - "src/**"
+  push: { branches: [ master ] }
   workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: "20.x"
-          cache: "npm"
-          cache-dependency-path: "package-lock.json"
-
-      - name: Install deps
-        run: npm ci
-
-      - name: Build
-        run: npm run build
-
-      # 확인후삭제
-      - name: Verify outputs
-        run: |
-          test -d .next || (echo "❌ .next missing"; exit 1)
-          test -f node_modules/.bin/next || (echo "❌ next binary missing"; ls -al node_modules/.bin; exit 1)
-          du -sh .next node_modules || true
-
-      # 배포용 아티팩트 업로드
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: node-app
-          path: |
-            .next
-            node_modules
-            public
-            package.json
-            package-lock.json
-            next.config.*
-
   deploy:
     runs-on: ubuntu-latest
-    needs: build
     permissions:
       id-token: write
       contents: read
     steps:
-      - name: Download artifact
+      - uses: actions/checkout@v4
+
+      # (선택) CI에서도 한 번 빌드 점검만 해보고 싶다면 주석 해제
+      # - uses: actions/setup-node@v3
+      #   with:
+      #     node-version: '20.x'
+      #     cache: 'npm'
+      #     cache-dependency-path: 'package-lock.json'
+      # - run: npm ci
+      # - run: npm run build
+
+      # ✅ 서버 빌드용 "소스만" 아티팩트 업로드
+      - name: Upload source artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: node-src
+          path: |
+            app
+            pages
+            public
+            src
+            package.json
+            package-lock.json
+            next.config.* 
+            tsconfig.json
+
+      - name: Download source artifact
         uses: actions/download-artifact@v4
         with:
-          name: node-app
+          name: node-src
           path: dist
 
-      - name: Inspect downloaded files
-        run: |
-          ls -al dist | sed -n '1,120p'
-          ls -al dist/.next | head || true
-          ls -al dist/node_modules/.bin | head || true
-
-      - name: Archive for deployment (release.zip)
+      - name: Archive source (release.zip)
         run: |
           cd dist
           zip -r ../release.zip . -q
           cd ..
-          ls -al release.zip
+          unzip -l release.zip | sed -n '1,120p'
 
       - name: Azure login (OIDC)
         uses: azure/login@v2
@@ -89,6 +60,6 @@ jobs:
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
-          app-name: "mydea-frontend"
-          slot-name: "Production"
-          package: "release.zip"
+          app-name: 'mydea-frontend'
+          slot-name: 'Production'
+          package: 'release.zip'
