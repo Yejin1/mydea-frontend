@@ -2,8 +2,8 @@ name: Build & Deploy Next.js (standalone) to Azure App Service
 
 on:
   push:
-    branches: [ master, main ]
-  workflow_dispatch: {}
+    branches: [ master ]
+  workflow_dispatch:
 
 concurrency:
   group: mydea-frontend-prod
@@ -32,82 +32,33 @@ jobs:
 
       - name: Assert standalone output exists
         run: |
-          ls -al .next || true
+          ls -al .next
           if [ ! -d ".next/standalone" ]; then
             echo "❌ .next/standalone not found"
             exit 1
           fi
           test -f .next/standalone/server.js
-          test -d .next/static
 
       - name: Package standalone output
         run: |
           set -e
           rm -rf package && mkdir -p package
+
           # 1) standalone 산출물 복사 (server.js, node_modules 등)
           cp -r .next/standalone/* package/
-          # 2) Next 정적 리소스 및 필수 빌드 메타 복사
+
+          # 2) 정적 파일(static) + BUILD_ID
           mkdir -p package/.next/static
           cp -r .next/static/* package/.next/static/
-          # ✅ 필수: BUILD_ID
           mkdir -p package/.next
           cp .next/BUILD_ID package/.next/BUILD_ID
-          # (권장) 추가 메타도 함께: 문제 예방용
-          for f in images-manifest.json prerender-manifest.json routes-manifest.json; do
-            [ -f ".next/$f" ] && cp ".next/$f" "package/.next/$f"
-          done
-          # 3) public(있다면)
-          if [ -d public ]; then
-            mkdir -p package/public && cp -r public/* package/public/
+
+          # 3) ✅ 서버 런타임이 참조하는 server/ 트리 추가
+          if [ -d ".next/server" ]; then
+            mkdir -p package/.next/server
+            cp -r .next/server/* package/.next/server/
           fi
-          echo "== packaged root =="
-          ls -al package | sed -n '1,120p'
-          # 검증
-          test -f package/server.js
-          test -f package/.next/BUILD_ID
-          test -d package/.next/static
-          test -d package/node_modules
 
-      - name: Create release.zip
-        run: |
-          (cd package && zip -r ../release.zip .)
-          echo "== zip top =="
-          unzip -l release.zip | head -20
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: release
-          path: release.zip
-
-  deploy:
-    runs-on: ubuntu-latest
-    needs: build
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: release
-          path: ./release   # zip을 ./release/release.zip 으로 다운로드
-
-      - name: Verify artifact
-        run: |
-          echo "== check downloaded zip =="
-          ls -al ./release
-          unzip -l ./release/release.zip | head -20
-
-      - name: Azure login (OIDC)
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_DCC3CFFF754D40EC91632123281E68C9 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_CF2F17DEA22049598F871624F2C13252 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_40ED88AB27D24EB795F402493C787FE4 }}
-
-      - name: Deploy (Run-From-Package)
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: mydea-frontend
-          package: ./release/release.zip   # ← zip 경로 확실히 지정
-          type: zip
+          # 4) 루트 manifest 몇 개도 복사
+          for f in \
+            app-build-manifest.json \
