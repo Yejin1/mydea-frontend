@@ -5,50 +5,62 @@ on:
   workflow_dispatch:
 
 jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          cache-dependency-path: 'package-lock.json'
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Verify outputs
+        run: |
+          test -d .next || (echo "❌ .next missing"; exit 1)
+          test -f node_modules/.bin/next || (echo "❌ next binary missing"; ls -al node_modules/.bin; exit 1)
+          du -sh .next node_modules || true
+
+      # - name: Prune dev deps
+      #   run: npm prune --omit=dev
+
+      - name: Create release.zip at repo root
+        run: |
+          zip -r release.zip \
+            .next \
+            node_modules \
+            public \
+            package.json \
+            package-lock.json \
+            next.config.* \
+            -q
+          unzip -l release.zip | sed -n '1,200p'
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release
+          path: release.zip
+
   deploy:
     runs-on: ubuntu-latest
+    needs: build
     permissions:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v4
-
-      # (선택) CI에서도 한 번 빌드 점검만 해보고 싶다면 주석 해제
-      # - uses: actions/setup-node@v3
-      #   with:
-      #     node-version: '20.x'
-      #     cache: 'npm'
-      #     cache-dependency-path: 'package-lock.json'
-      # - run: npm ci
-      # - run: npm run build
-
-      # ✅ 서버 빌드용 "소스만" 아티팩트 업로드
-      - name: Upload source artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
-          name: node-src
-          path: |
-            app
-            pages
-            public
-            src
-            package.json
-            package-lock.json
-            next.config.* 
-            tsconfig.json
-
-      - name: Download source artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: node-src
-          path: dist
-
-      - name: Archive source (release.zip)
-        run: |
-          cd dist
-          zip -r ../release.zip . -q
-          cd ..
-          unzip -l release.zip | sed -n '1,120p'
+          name: release
+          path: .
 
       - name: Azure login (OIDC)
         uses: azure/login@v2
@@ -57,9 +69,15 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_CF2F17DEA22049598F871624F2C13252 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_40ED88AB27D24EB795F402493C787FE4 }}
 
-      - name: Deploy to Azure Web App
+      # - name: Warm restart
+      #   run: az webapp restart --name mydea-frontend --resource-group <YOUR_RG>
+
+      - name: Deploy to Azure Web App (Run-From-Package)
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'mydea-frontend'
           slot-name: 'Production'
           package: 'release.zip'
+          type: 'zip'
+          clean: true
+          restart: true
