@@ -29,6 +29,7 @@ jobs:
           test -f node_modules/.bin/next || (echo "❌ next binary missing"; ls -al node_modules/.bin; exit 1)
           du -sh .next node_modules || true
 
+      # (선택) devDependencies 제거로 용량 축소 — next는 dependencies에 있으니 안전
       # - name: Prune dev deps
       #   run: npm prune --omit=dev
 
