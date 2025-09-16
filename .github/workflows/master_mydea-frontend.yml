@@ -35,6 +35,9 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: build
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -52,3 +55,4 @@ jobs:
           app-name: 'mydea-frontend'
           slot-name: 'Production'
           package: .
+
