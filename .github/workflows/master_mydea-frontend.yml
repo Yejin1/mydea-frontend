@@ -1,8 +1,9 @@
 name: Build & Deploy Next.js (standalone) to Azure App Service
 
 on:
-  push: { branches: [ master ] }
-  workflow_dispatch:
+  push:
+    branches: [ master, main ]
+  workflow_dispatch: {}
 
 concurrency:
   group: mydea-frontend-prod
@@ -31,25 +32,45 @@ jobs:
 
       - name: Assert standalone output exists
         run: |
-          ls -al .next
+          ls -al .next || true
           if [ ! -d ".next/standalone" ]; then
             echo "❌ .next/standalone not found"
             exit 1
           fi
           test -f .next/standalone/server.js
+          test -d .next/static
 
       - name: Package standalone output
         run: |
+          set -e
           rm -rf package && mkdir -p package
+          # 1) standalone 산출물 복사 (server.js, node_modules 등)
           cp -r .next/standalone/* package/
+          # 2) Next 정적 리소스 및 필수 빌드 메타 복사
           mkdir -p package/.next/static
           cp -r .next/static/* package/.next/static/
-          if [ -d public ]; then mkdir -p package/public && cp -r public/* package/public/; fi
-          ls -al package
+          # ✅ 필수: BUILD_ID
+          mkdir -p package/.next
+          cp .next/BUILD_ID package/.next/BUILD_ID
+          # (권장) 추가 메타도 함께: 문제 예방용
+          for f in images-manifest.json prerender-manifest.json routes-manifest.json; do
+            [ -f ".next/$f" ] && cp ".next/$f" "package/.next/$f"
+          done
+          # 3) public(있다면)
+          if [ -d public ]; then
+            mkdir -p package/public && cp -r public/* package/public/
+          fi
+          echo "== packaged root =="
+          ls -al package | sed -n '1,120p'
+          # 검증
+          test -f package/server.js
+          test -f package/.next/BUILD_ID
+          test -d package/.next/static
+          test -d package/node_modules
 
       - name: Create release.zip
         run: |
-          cd package && zip -r ../release.zip . && cd ..
+          (cd package && zip -r ../release.zip .)
           echo "== zip top =="
           unzip -l release.zip | head -20
 
