@@ -1,44 +1,94 @@
-name: Build and Deploy Next.js to Azure App Service
+name: Build and deploy Node.js app to Azure Web App - mydea-frontend
 
 on:
   push:
     branches: [ master ]
+    paths:
+      - "**.yml"
+      - "package.json"
+      - "package-lock.json"
+      - "next.config.*"
+      - "app/**"
+      - "pages/**"
+      - "public/**"
+      - "src/**"
   workflow_dispatch:
-permissions:
-  id-token: write
-  contents: read 
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
-    
     steps:
-      - name: 'Checkout Github Action'
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: 'Set up Node.js'
+      - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '20.x'
-          cache: 'npm'
-          cache-dependency-path: 'package-lock.json'
+          node-version: "20.x"
+          cache: "npm"
+          cache-dependency-path: "package-lock.json"
 
-      - name: 'Install Dependencies'
+      - name: Install deps
         run: npm ci
 
-      - name: 'Build Project'
+      - name: Build
         run: npm run build
 
-      - name: 'Login to Azure'
+      # 확인후삭제
+      - name: Verify outputs
+        run: |
+          test -d .next || (echo "❌ .next missing"; exit 1)
+          test -f node_modules/.bin/next || (echo "❌ next binary missing"; ls -al node_modules/.bin; exit 1)
+          du -sh .next node_modules || true
+
+      # 배포용 아티팩트 업로드
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: node-app
+          path: |
+            .next
+            node_modules
+            public
+            package.json
+            package-lock.json
+            next.config.*
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: node-app
+          path: dist
+
+      - name: Inspect downloaded files
+        run: |
+          ls -al dist | sed -n '1,120p'
+          ls -al dist/.next | head || true
+          ls -al dist/node_modules/.bin | head || true
+
+      - name: Archive for deployment (release.zip)
+        run: |
+          cd dist
+          zip -r ../release.zip . -q
+          cd ..
+          ls -al release.zip
+
+      - name: Azure login (OIDC)
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_DCC3CFFF754D40EC91632123281E68C9 }}
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_CF2F17DEA22049598F871624F2C13252 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_40ED88AB27D24EB795F402493C787FE4 }}
 
-      - name: 'Deploy to Azure App Service'
+      - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
-          app-name: 'mydea-frontend'
-          slot-name: 'Production'
-          package: .
+          app-name: "mydea-frontend"
+          slot-name: "Production"
+          package: "release.zip"
