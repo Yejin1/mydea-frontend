@@ -1,4 +1,4 @@
-name: Build and deploy Node.js app to Azure Web App - mydea-frontend
+name: Build & Deploy Next.js (standalone) to Azure App Service
 
 on:
   push: { branches: [ master ] }
@@ -10,43 +10,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
-          node-version: '20.x'
+          node-version: '20'
           cache: 'npm'
           cache-dependency-path: 'package-lock.json'
 
-      - name: Install deps
-        run: npm ci
+      - run: npm ci
+      - run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
 
-      - name: Build
-        run: npm run build
-
-      - name: Verify outputs
+      - name: Package standalone output
         run: |
-          test -d .next || (echo "❌ .next missing"; exit 1)
-          test -f node_modules/.bin/next || (echo "❌ next binary missing"; ls -al node_modules/.bin; exit 1)
-          du -sh .next node_modules || true
+          rm -rf package && mkdir -p package
+          cp -r .next/standalone/* package/
+          mkdir -p package/.next/static
+          cp -r .next/static/* package/.next/static/
+          if [ -d public ]; then mkdir -p package/public && cp -r public/* package/public/; fi
+          # sanity check
+          test -f package/server.js && test -d package/node_modules && test -d package/.next/static
 
-      # (선택) devDependencies 제거로 용량 축소 — next는 dependencies에 있으니 안전
-      # - name: Prune dev deps
-      #   run: npm prune --omit=dev
-
-      - name: Create release.zip at repo root
+      - name: Create release.zip
         run: |
-          zip -r release.zip \
-            .next \
-            node_modules \
-            public \
-            package.json \
-            package-lock.json \
-            next.config.* \
-            -q
+          cd package && zip -r ../release.zip . && cd ..
           unzip -l release.zip | sed -n '1,200p'
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: release
           path: release.zip
@@ -63,22 +53,15 @@ jobs:
           name: release
           path: .
 
-      - name: Azure login (OIDC)
-        uses: azure/login@v2
+      - uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_DCC3CFFF754D40EC91632123281E68C9 }}
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_CF2F17DEA22049598F871624F2C13252 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_40ED88AB27D24EB795F402493C787FE4 }}
 
-      # - name: Warm restart
-      #   run: az webapp restart --name mydea-frontend --resource-group <YOUR_RG>
-
       - name: Deploy to Azure Web App (Run-From-Package)
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'mydea-frontend'
-          slot-name: 'Production'
           package: 'release.zip'
           type: 'zip'
-          clean: true
-          restart: true
