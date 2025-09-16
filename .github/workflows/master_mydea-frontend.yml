@@ -56,10 +56,15 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_CF2F17DEA22049598F871624F2C13252 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_40ED88AB27D24EB795F402493C787FE4 }}
 
+      - name: Archive app for deployment
+        run: zip -r release.zip .next node_modules public package.json package-lock.json next.config.js
+
       - uses: azure/webapps-deploy@v3
         with:
           app-name: 'mydea-frontend'
           slot-name: 'Production'
-          package: .
+          package: release.zip
+
+
 
 
