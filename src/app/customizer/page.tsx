@@ -137,8 +137,8 @@ function CustomizerContent() {
           loadedRadiusRef.current = data.radiusMm;
           setRadius(data.radiusMm);
         }
-        if (data?.previewUrl) {
-          setImageUploadedUrl(data.previewUrl);
+        if (data?.signedPreviewUrl) {
+          setImageUploadedUrl(data.signedPreviewUrl);
         }
         attemptApplyLoadedSelection();
       } catch (e: unknown) {
@@ -681,7 +681,7 @@ function CustomizerContent() {
                   if (url) {
                     try {
                       const patchRes = await fetch(
-                        `${base}/api/works/${newId}`,
+                        `${base}/api/works/${newId}/preview-url`,
                         {
                           method: "PATCH",
                           headers: { "Content-Type": "application/json" },
@@ -733,7 +733,7 @@ function CustomizerContent() {
                     radiusMm: radius,
                     sizeIndex: selectedIdx,
                   };
-                  // 기존 썸네일 보존. 재업로드를 별도 버튼으로 유지.
+                  //기존 썸네일 보존. 재업로드를 별도 버튼으로 유지.
                   const patchRes = await fetch(`${base}/api/works/${id}`, {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
@@ -818,7 +818,6 @@ function CustomizerContent() {
             {deleteError}
           </div>
         )}
-        {/* 메시지 출력 제거됨 */}
         <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
           <button
             type="button"
@@ -840,7 +839,7 @@ function CustomizerContent() {
                     process.env.NEXT_PUBLIC_API_BASE_URL ||
                     "http://localhost:8080";
                   const patchRes = await fetch(
-                    `${base}/api/works/${savedWorkId}`,
+                    `${base}/api/works/${savedWorkId}/preview-url`,
                     {
                       method: "PATCH",
                       headers: { "Content-Type": "application/json" },

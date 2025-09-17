@@ -4,6 +4,7 @@ export type WorkItem = {
   workType: "ring" | "bracelet" | "necklace";
   designType: "basic" | "flower";
   previewUrl: string | null;
+  signedPreviewUrl?: string | null;
   imageUrl?: string | null;
   createdAt: string;
   updatedAt: string;

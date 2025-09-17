@@ -12,7 +12,7 @@ async function fetchWorks(page = 0, size = 20): Promise<WorksResult> {
   const rawBase =
     process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
   const base = rawBase.replace(/\/$/, "");
-  // 백엔드가 userId 요구할 수 있다는 가정 (필요 시 값 교체)
+
   const userId = 1; // TODO: 인증 연동 후 동적 값으로 교체
   const url = `${base}/api/works?userId=${userId}&page=${page}&size=${size}`;
   try {
@@ -58,26 +58,8 @@ async function fetchWorks(page = 0, size = 20): Promise<WorksResult> {
         last: true,
       };
     }
-    // 1) Array 모드
-    if (Array.isArray(data)) {
-      if (process.env.NODE_ENV !== "production") {
-        console.log("[myworks] works fetch success (array)", {
-          count: data.length,
-          first: data[0],
-        });
-      }
-      return {
-        items: data as WorkItem[],
-        total: data.length,
-        page: 0,
-        pageSize: data.length,
-        totalPages: 1,
-        first: true,
-        last: true,
-      };
-    }
-    // 2) Paginated 객체 모드
     const p = data as Partial<PaginatedResponse>;
+    console.log(p);
     if (p && Array.isArray(p.content)) {
       if (process.env.NODE_ENV !== "production") {
         console.log("[myworks] works fetch success (paginated)", {

@@ -82,7 +82,12 @@ export default function WorksClient({
     setDeleteError(null);
     startDelete(async () => {
       try {
-        const res = await fetch("/api/works", {
+        const base = (process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(
+          /\/$/,
+          ""
+        );
+        const url = base ? `${base}/api/works` : "/api/works";
+        const res = await fetch(url, {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(selectedIds),
@@ -151,9 +156,6 @@ export default function WorksClient({
         >
           {deleting ? "삭제중..." : `삭제 (${selectedIds.length})`}
         </button>
-        {deleteError && (
-          <span style={{ color: "red", fontSize: 12 }}>{deleteError}</span>
-        )}
       </div>
 
       {items.length === 0 ? (
@@ -167,7 +169,7 @@ export default function WorksClient({
         <div className={styles.grid}>
           {items.map((w) => {
             const imgSrc =
-              w.previewUrl ||
+              w.signedPreviewUrl ||
               w.imageUrl ||
               (blobBase ? `${blobBase}/work-${w.id}.png` : "");
             const checked = selectedIds.includes(w.id);
@@ -177,41 +179,6 @@ export default function WorksClient({
                 className={styles.card}
                 style={{ position: "relative" }}
               >
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    toggleSelect(w.id);
-                  }}
-                  aria-label={checked ? "선택 해제" : "선택"}
-                  style={{
-                    position: "absolute",
-                    top: 6,
-                    left: 6,
-                    width: 22,
-                    height: 22,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    background: "rgba(255,255,255,0.9)",
-                    border: checked ? "2px solid #4a67ff" : "2px solid #ccc",
-                    borderRadius: 6,
-                    cursor: "pointer",
-                    zIndex: 2,
-                    boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
-                  }}
-                >
-                  <span
-                    style={{
-                      width: 10,
-                      height: 10,
-                      background: checked ? "#4a67ff" : "transparent",
-                      borderRadius: 2,
-                      transition: "background .15s",
-                    }}
-                  />
-                </button>
                 <Link
                   href={`/customizer?workId=${w.id}`}
                   prefetch={false}
@@ -226,8 +193,22 @@ export default function WorksClient({
                   )}
                 </Link>
                 <div className={styles.body}>
-                  <div className={styles.nameRow}>
+                  <div
+                    className={styles.nameRow}
+                    style={{ display: "flex", alignItems: "center", gap: 8 }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleSelect(w.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label={checked ? "선택 해제" : "선택"}
+                      style={{ marginRight: 8, cursor: "pointer" }}
+                    />
                     <div className={styles.name}>{w.name}</div>
+                    <span style={{ color: "#888", fontSize: 12 }}>
+                      (id: {w.id})
+                    </span>
                   </div>
                   <div className={styles.badges}>
                     <span
