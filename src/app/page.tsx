@@ -20,14 +20,26 @@ export default function Home() {
           나만의 커스텀 악세사리
         </div>
         <div className={styles.cards}>
-          {([21, 15, 14, 13, 12, 11] as const).map((id) => (
+          {([21, 11, 24, 9, 26, 27] as const).map((id) => (
             <Link
               key={id}
               href={`/customizer?workId=${id}`}
               prefetch={false}
               className={styles.card}
-              aria-label={`작업 ${id} 편집하기`}
-            />
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`/main_example/work-${id}.png`}
+                alt={`작업 ${id}`}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  display: "block",
+                }}
+                loading="lazy"
+              />
+            </Link>
           ))}
         </div>
       </div>

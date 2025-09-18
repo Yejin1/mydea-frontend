@@ -106,6 +106,8 @@ function CustomizerContent() {
       try {
         setLoadingExisting(true);
         const base = process.env.NEXT_PUBLIC_API_BASE_URL;
+        console.log(base);
+        console.log(process.env);
         const res = await fetch(`${base}/api/works/${initialWorkId}`, {
           signal: controller.signal,
         });
