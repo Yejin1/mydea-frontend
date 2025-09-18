@@ -44,6 +44,8 @@ function CustomizerContent() {
       /\/$/,
       ""
     );
+    console.log(base);
+    console.log("만들기 화면");
     return base ? `${base}${path}` : path;
   };
 

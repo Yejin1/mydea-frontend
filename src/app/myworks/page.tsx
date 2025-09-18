@@ -8,6 +8,8 @@ async function fetchWorks(page = 0, size = 20): Promise<WorksResult> {
   const base = process.env.NEXT_PUBLIC_API_BASE_URL;
 
   const userId = 1; // TODO: 인증 연동 후 동적 값으로 교체
+  console.log(base);
+  console.log("목록화면");
   const url = `${base}/api/works?userId=${userId}&page=${page}&size=${size}`;
   try {
     const res = await fetch(url, {
