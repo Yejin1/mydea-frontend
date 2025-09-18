@@ -34,7 +34,7 @@ Mydea는 사용자가 직접 색상을 선택하고, 다양한 데코 타입을 
 
 ## 기술 스택
 - Frontend : Next.js, React Three Fiber, TypeScript  
-- Backend (예정) : Spring Boot, MySQL (Azure)  
+- Backend : Spring Boot, MySQL (Azure)  
 - Deployment : Azure  
 
 ---
