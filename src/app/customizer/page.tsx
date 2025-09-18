@@ -38,6 +38,15 @@ function CustomizerContent() {
   const isEditMode = !!savedWorkId; // savedWorkId 세팅되면 편집 모드로 간주
   const [isLocal, setIsLocal] = useState(false);
 
+  // API URL 생성 헬퍼: BASE 미설정 시 동일 오리진 상대 경로 사용
+  const makeApiUrl = (path: string) => {
+    const base = (process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(
+      /\/$/,
+      ""
+    );
+    return base ? `${base}${path}` : path;
+  };
+
   const [flowerColors, setFlowerColors] = useState({
     petal: "#ffb6c1",
     center: "#ffe066",
@@ -105,10 +114,7 @@ function CustomizerContent() {
     (async () => {
       try {
         setLoadingExisting(true);
-        const base = process.env.NEXT_PUBLIC_API_BASE_URL;
-        console.log(base);
-        console.log(process.env);
-        const res = await fetch(`${base}/api/works/${initialWorkId}`, {
+        const res = await fetch(makeApiUrl(`/api/works/${initialWorkId}`), {
           signal: controller.signal,
         });
         if (!res.ok) {
@@ -645,7 +651,6 @@ function CustomizerContent() {
             onClick={async () => {
               try {
                 setSaving(true);
-                const base = process.env.NEXT_PUBLIC_API_BASE_URL;
                 if (!isEditMode) {
                   // 생성
                   const createPayload = {
@@ -667,7 +672,7 @@ function CustomizerContent() {
                     sizeIndex: selectedIdx,
                     previewUrl: null,
                   };
-                  const createRes = await fetch(`${base}/api/works`, {
+                  const createRes = await fetch(makeApiUrl(`/api/works`), {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(createPayload),
@@ -689,7 +694,7 @@ function CustomizerContent() {
                   if (url) {
                     try {
                       const patchRes = await fetch(
-                        `${base}/api/works/${newId}/preview-url`,
+                        makeApiUrl(`/api/works/${newId}/preview-url`),
                         {
                           method: "PATCH",
                           headers: { "Content-Type": "application/json" },
@@ -740,7 +745,7 @@ function CustomizerContent() {
                     sizeIndex: selectedIdx,
                   };
                   //기존 썸네일 보존. 재업로드를 별도 버튼으로 유지.
-                  const patchRes = await fetch(`${base}/api/works/${id}`, {
+                  const patchRes = await fetch(makeApiUrl(`/api/works/${id}`), {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(patchBody),
@@ -757,7 +762,7 @@ function CustomizerContent() {
                     const newUrl = await captureAndUploadScreenshot(id);
                     if (newUrl) {
                       const resPreview = await fetch(
-                        `${base}/api/works/${id}/preview-url`,
+                        makeApiUrl(`/api/works/${id}/preview-url`),
                         {
                           method: "PATCH",
                           headers: { "Content-Type": "application/json" },
@@ -824,11 +829,10 @@ function CustomizerContent() {
                   )
                 )
                   return;
-                const base = process.env.NEXT_PUBLIC_API_BASE_URL;
                 try {
                   setDeleteError(null);
                   setDeleting(true);
-                  const res = await fetch(`${base}/api/works`, {
+                  const res = await fetch(makeApiUrl(`/api/works`), {
                     method: "DELETE",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify([savedWorkId]),
@@ -876,9 +880,8 @@ function CustomizerContent() {
                   // 선택적으로 PATCH 재시도
                   try {
                     setPatchingImage(true);
-                    const base = process.env.NEXT_PUBLIC_API_BASE_URL;
                     const patchRes = await fetch(
-                      `${base}/api/works/${savedWorkId}/preview-url`,
+                      makeApiUrl(`/api/works/${savedWorkId}/preview-url`),
                       {
                         method: "PATCH",
                         headers: { "Content-Type": "application/json" },
