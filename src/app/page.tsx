@@ -1,6 +1,6 @@
 import styles from "./page.module.css";
 import Link from "next/link";
-import { RidiBatang } from "@/app/fonts"; // 리디바탕 폰트 변수 import
+import { RidiBatang } from "@/app/fonts";
 
 export default function Home() {
   return (

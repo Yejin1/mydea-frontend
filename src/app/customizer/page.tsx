@@ -72,6 +72,7 @@ function CustomizerContent() {
   useEffect(() => {
     try {
       const host = window.location.hostname;
+      console.log(host);
       setIsLocal(host === "localhost" || host === "127.0.0.1");
     } catch {
       setIsLocal(false);

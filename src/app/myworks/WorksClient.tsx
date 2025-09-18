@@ -65,7 +65,7 @@ export default function WorksClient({
   const [isLocal, setIsLocal] = useState(false);
   const total = initialResult.total;
 
-  // 로컬 환경(호스트네임 기준)에서만 ID 표시
+  // 로컬 환경에서만 ID 표시
   useEffect(() => {
     try {
       const host = window.location.hostname;
@@ -124,7 +124,7 @@ export default function WorksClient({
   return (
     <div className={styles.pageWrap}>
       <div className={styles.headerRow}>
-        <h1 className={styles.title}>내 작업물</h1>
+        <h1 className={styles.title}>내 저장함</h1>
         <div className={styles.countInfo}>{total}개</div>
       </div>
 
