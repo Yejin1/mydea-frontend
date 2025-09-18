@@ -1,4 +1,5 @@
 import styles from "./page.module.css";
+import Link from "next/link";
 import { RidiBatang } from "@/app/fonts"; // 리디바탕 폰트 변수 import
 
 export default function Home() {
@@ -19,12 +20,15 @@ export default function Home() {
           나만의 커스텀 악세사리
         </div>
         <div className={styles.cards}>
-          <div className={styles.card}></div>
-          <div className={styles.card}></div>
-          <div className={styles.card}></div>
-          <div className={styles.card}></div>
-          <div className={styles.card}></div>
-          <div className={styles.card}></div>
+          {([21, 15, 14, 13, 12, 11] as const).map((id) => (
+            <Link
+              key={id}
+              href={`/customizer?workId=${id}`}
+              prefetch={false}
+              className={styles.card}
+              aria-label={`작업 ${id} 편집하기`}
+            />
+          ))}
         </div>
       </div>
     </>

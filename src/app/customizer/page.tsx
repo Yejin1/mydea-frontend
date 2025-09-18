@@ -93,8 +93,7 @@ function CustomizerContent() {
     (async () => {
       try {
         setLoadingExisting(true);
-        const base =
-          process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+        const base = process.env.NEXT_PUBLIC_API_BASE_URL;
         const res = await fetch(`${base}/api/works/${initialWorkId}`, {
           signal: controller.signal,
         });
@@ -630,12 +629,9 @@ function CustomizerContent() {
             className={styles.btnSave}
             disabled={saving || patchingImage || loadingExisting}
             onClick={async () => {
-              // saveError/saveSuccess/imageUploadError 상태 제거됨
               try {
                 setSaving(true);
-                const base =
-                  process.env.NEXT_PUBLIC_API_BASE_URL ||
-                  "http://localhost:8080";
+                const base = process.env.NEXT_PUBLIC_API_BASE_URL;
                 if (!isEditMode) {
                   // 생성
                   const createPayload = {
@@ -647,13 +643,11 @@ function CustomizerContent() {
                         ? "팔찌"
                         : "목걸이"
                     }`,
-                    accessory: accessory,
-                    design: design,
+                    workType: accessory,
+                    designType: design,
                     colors: colors,
-                    flowerColors: {
-                      petal: flowerColors.petal,
-                      center: flowerColors.center,
-                    },
+                    flowerPetal: flowerColors.petal,
+                    flowerCenter: flowerColors.center,
                     autoSize: autoSize,
                     radiusMm: radius,
                     sizeIndex: selectedIdx,
@@ -722,20 +716,18 @@ function CustomizerContent() {
                         ? "팔찌"
                         : "목걸이"
                     }`,
-                    accessory: accessory,
-                    design: design,
+                    workType: accessory,
+                    designType: design,
                     colors: colors,
-                    flowerColors: {
-                      petal: flowerColors.petal,
-                      center: flowerColors.center,
-                    },
+                    flowerPetal: flowerColors.petal,
+                    flowerCenter: flowerColors.center,
                     autoSize: autoSize,
                     radiusMm: radius,
                     sizeIndex: selectedIdx,
                   };
                   //기존 썸네일 보존. 재업로드를 별도 버튼으로 유지.
                   const patchRes = await fetch(`${base}/api/works/${id}`, {
-                    method: "PATCH",
+                    method: "PUT",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(patchBody),
                   });
@@ -782,11 +774,13 @@ function CustomizerContent() {
               disabled={saving || deleting}
               onClick={async () => {
                 if (!savedWorkId || deleting) return;
-                if (!confirm("이 작업을 삭제할까요? 되돌릴 수 없습니다."))
+                if (
+                  !confirm(
+                    "정말 삭제하시겠습니까? 삭제 후에는 복구할 수 없습니다."
+                  )
+                )
                   return;
-                const base =
-                  process.env.NEXT_PUBLIC_API_BASE_URL ||
-                  "http://localhost:8080";
+                const base = process.env.NEXT_PUBLIC_API_BASE_URL;
                 try {
                   setDeleteError(null);
                   setDeleting(true);
@@ -835,9 +829,7 @@ function CustomizerContent() {
                 // 선택적으로 PATCH 재시도
                 try {
                   setPatchingImage(true);
-                  const base =
-                    process.env.NEXT_PUBLIC_API_BASE_URL ||
-                    "http://localhost:8080";
+                  const base = process.env.NEXT_PUBLIC_API_BASE_URL;
                   const patchRes = await fetch(
                     `${base}/api/works/${savedWorkId}/preview-url`,
                     {

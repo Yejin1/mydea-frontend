@@ -25,7 +25,7 @@ function BeadFlowerRing({
   petalOffset = 1.4, // 꽃 중심→꽃잎 거리
   phase = Math.PI / 2,
   colors = ["#f09999", "#9dc99f", "#b0bcfc"],
-  gapScale = 1.05, // 공백각 스케일(1.0이면 '최대한 균일', 0.8이면 좀 더 촘촘)
+  gapScale = 1.05, // 공백각 스케일
 }: {
   flowers?: number;
   ringRadius?: number;
@@ -189,6 +189,8 @@ function BeadFlowerRing({
     petalOffset,
     phase,
     colorArr,
+    petalColor,
+    centerColor,
     zAxis,
     gapScale,
     dummy,

@@ -8,10 +8,7 @@ import { WorkItem, WorksResult, PaginatedResponse } from "./types";
 
 // 서버 컴포넌트: 목록 조회 (배열 또는 페이지 응답 모두 지원)
 async function fetchWorks(page = 0, size = 20): Promise<WorksResult> {
-  // base URL 끝 슬래시 제거 (중복 // 방지)
-  const rawBase =
-    process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
-  const base = rawBase.replace(/\/$/, "");
+  const base = process.env.NEXT_PUBLIC_API_BASE_URL;
 
   const userId = 1; // TODO: 인증 연동 후 동적 값으로 교체
   const url = `${base}/api/works?userId=${userId}&page=${page}&size=${size}`;

@@ -158,6 +158,12 @@ export default function WorksClient({
         </button>
       </div>
 
+      {deleteError && (
+        <div style={{ color: "#ff4d4f", fontSize: 12, marginBottom: 8 }}>
+          {deleteError}
+        </div>
+      )}
+
       {items.length === 0 ? (
         <div className={styles.emptyState}>
           저장된 작업이 없습니다.
@@ -205,7 +211,9 @@ export default function WorksClient({
                       aria-label={checked ? "선택 해제" : "선택"}
                       style={{ marginRight: 8, cursor: "pointer" }}
                     />
+                    {/* 이름 표시는 숨김 (향후 사용 가능하도록 보존)
                     <div className={styles.name}>{w.name}</div>
+                    */}
                     <span style={{ color: "#888", fontSize: 12 }}>
                       (id: {w.id})
                     </span>
