@@ -19,6 +19,28 @@ Mydea는 사용자가 직접 색상을 선택하고, 다양한 데코 타입을 
 
 ---
 
+## 스크린샷
+
+
+### 기본 반지 제작 화면
+![기본 반지](./docs/기본반지.png)
+
+### 꽃 팔찌 제작 화면
+![꽃 팔찌](./docs/꽃만들기.png)
+
+### 저장 목록
+![저장 목록](./docs/my.png)
+---
+
+## 기술 스택
+- Frontend : Next.js, React Three Fiber, TypeScript  
+- Backend : Spring Boot, MySQL (Azure)  
+- Deployment : Azure  
+
+---
+
+## 프로젝트 상태
+현재 개발 진행 중이며, 로그인 및 주문 기능은 추후 업데이트될 예정입니다.
 ## 구현 예정 기능
 - 로그인 / 회원가입  
 - 장바구니 및 주문 관리  
@@ -26,22 +48,3 @@ Mydea는 사용자가 직접 색상을 선택하고, 다양한 데코 타입을 
 
 ---
 
-## 스크린샷
-
-### 기본 반지
-![기본 반지](./docs/기본반지.png)
-
-### 꽃 팔찌
-![꽃 팔찌](./docs/꽃만들기.png)
-
----
-
-## 기술 스택
-- Frontend : Next.js, React Three Fiber, TypeScript  
-- Backend (예정) : Spring Boot, MySQL (Azure)  
-- Deployment : Azure  
-
----
-
-## 프로젝트 상태
-현재 개발 진행 중이며, 로그인 및 주문 기능은 추후 업데이트될 예정입니다.
