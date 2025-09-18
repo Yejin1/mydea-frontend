@@ -29,6 +29,7 @@ jobs:
         run: npm run build
         env:
           NEXT_TELEMETRY_DISABLED: 1
+          NEXT_PUBLIC_API_BASE_URL: ${{ secrets.NEXT_PUBLIC_API_BASE_URL }}
 
       - name: Assert standalone output exists
         run: |
@@ -133,3 +134,4 @@ jobs:
           app-name: mydea-frontend
           package: ./release/release.zip
           type: zip
+
