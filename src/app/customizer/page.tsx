@@ -38,17 +38,6 @@ function CustomizerContent() {
   const isEditMode = !!savedWorkId; // savedWorkId 세팅되면 편집 모드로 간주
   const [isLocal, setIsLocal] = useState(false);
 
-  // API URL 생성 헬퍼: BASE 미설정 시 동일 오리진 상대 경로 사용
-  const makeApiUrl = (path: string) => {
-    const base = (process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(
-      /\/$/,
-      ""
-    );
-    console.log(base);
-    console.log("만들기 화면");
-    return base ? `${base}${path}` : path;
-  };
-
   const [flowerColors, setFlowerColors] = useState({
     petal: "#ffb6c1",
     center: "#ffe066",
@@ -83,7 +72,6 @@ function CustomizerContent() {
   useEffect(() => {
     try {
       const host = window.location.hostname;
-      console.log(host);
       setIsLocal(host === "localhost" || host === "127.0.0.1");
     } catch {
       setIsLocal(false);
@@ -116,7 +104,7 @@ function CustomizerContent() {
     (async () => {
       try {
         setLoadingExisting(true);
-        const res = await fetch(makeApiUrl(`/api/works/${initialWorkId}`), {
+        const res = await fetch(`/api/works/${initialWorkId}`, {
           signal: controller.signal,
         });
         if (!res.ok) {
@@ -674,7 +662,7 @@ function CustomizerContent() {
                     sizeIndex: selectedIdx,
                     previewUrl: null,
                   };
-                  const createRes = await fetch(makeApiUrl(`/api/works`), {
+                  const createRes = await fetch(`/api/works`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(createPayload),
@@ -696,7 +684,7 @@ function CustomizerContent() {
                   if (url) {
                     try {
                       const patchRes = await fetch(
-                        makeApiUrl(`/api/works/${newId}/preview-url`),
+                        `/api/works/${newId}/preview-url`,
                         {
                           method: "PATCH",
                           headers: { "Content-Type": "application/json" },
@@ -747,7 +735,7 @@ function CustomizerContent() {
                     sizeIndex: selectedIdx,
                   };
                   //기존 썸네일 보존. 재업로드를 별도 버튼으로 유지.
-                  const patchRes = await fetch(makeApiUrl(`/api/works/${id}`), {
+                  const patchRes = await fetch(`/api/works/${id}`, {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(patchBody),
@@ -764,7 +752,7 @@ function CustomizerContent() {
                     const newUrl = await captureAndUploadScreenshot(id);
                     if (newUrl) {
                       const resPreview = await fetch(
-                        makeApiUrl(`/api/works/${id}/preview-url`),
+                        `/api/works/${id}/preview-url`,
                         {
                           method: "PATCH",
                           headers: { "Content-Type": "application/json" },
@@ -834,7 +822,7 @@ function CustomizerContent() {
                 try {
                   setDeleteError(null);
                   setDeleting(true);
-                  const res = await fetch(makeApiUrl(`/api/works`), {
+                  const res = await fetch(`/api/works`, {
                     method: "DELETE",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify([savedWorkId]),
@@ -883,7 +871,7 @@ function CustomizerContent() {
                   try {
                     setPatchingImage(true);
                     const patchRes = await fetch(
-                      makeApiUrl(`/api/works/${savedWorkId}/preview-url`),
+                      `/api/works/${savedWorkId}/preview-url`,
                       {
                         method: "PATCH",
                         headers: { "Content-Type": "application/json" },
