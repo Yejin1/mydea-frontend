@@ -9,7 +9,6 @@ function BeadRingTorus({
   ringRadius = 11, // 반지 반경
   outer = 0.9, // 토러스 바깥쪽 반경(대반경) = 비즈 길이의 절반 느낌
   tube = 0.28, // 토러스 두께(벽 두께 느낌)
-  color = "#ff8aa8",
   colors = ["#f09999", "#9dc99f", "#e5e8fa"],
 }: {
   count?: number;
@@ -27,19 +26,21 @@ function BeadRingTorus({
   const mat = useMemo(
     () =>
       new THREE.MeshPhysicalMaterial({
-        color,
+        color: "rgba(255, 255, 255, 1)",
         roughness: 0.15,
-        metalness: 0.0,
-        transmission: 0.9,
-        thickness: 0.8,
-        ior: 1.25,
+        transmission: 0.7,
+        thickness: 0.6,
+        ior: 1.45,
       }),
-    [color]
+    []
   );
 
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const upY = useMemo(() => new THREE.Vector3(0, 0, 1), []);
-  const colorArr = colors.map((c) => new THREE.Color(c));
+  const colorArr = useMemo(
+    () => colors.map((c) => new THREE.Color(c)),
+    [colors]
+  );
 
   useLayoutEffect(() => {
     const m = meshRef.current;
@@ -70,7 +71,10 @@ function BeadRingTorus({
       m.setColorAt(i, colorArr[i % colorArr.length]);
     }
     m.instanceMatrix.needsUpdate = true;
-  }, [count, ringRadius, upY, colors, colorArr, dummy]);
+    if (m.instanceColor) {
+      m.instanceColor.needsUpdate = true;
+    }
+  }, [count, ringRadius, upY, colorArr, dummy]);
 
   return <instancedMesh ref={meshRef} args={[geom, mat, count]} />;
 }
@@ -101,7 +105,6 @@ export default function BeadsViewer({
         ringRadius={ringRadius}
         outer={0.12} //0.13
         tube={0.615} //0.63
-        color="#ffffff"
         colors={colors}
       />
     </Canvas>

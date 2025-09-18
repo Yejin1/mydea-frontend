@@ -1,10 +1,7 @@
-import WorksClient from "./WorksClient"; // 동적 오류 없으므로 확장자 및 expect-error 제거
+import WorksClient from "./WorksClient";
 
-// 이 페이지는 항상 최신 데이터를 위해 서버 동적 렌더링 강제
 export const dynamic = "force-dynamic";
 import { WorkItem, WorksResult, PaginatedResponse } from "./types";
-
-// 타입은 types.ts 분리
 
 // 서버 컴포넌트: 목록 조회 (배열 또는 페이지 응답 모두 지원)
 async function fetchWorks(page = 0, size = 20): Promise<WorksResult> {

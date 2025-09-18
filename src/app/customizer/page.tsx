@@ -36,6 +36,7 @@ function CustomizerContent() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const isEditMode = !!savedWorkId; // savedWorkId 세팅되면 편집 모드로 간주
+  const [isLocal, setIsLocal] = useState(false);
 
   const [flowerColors, setFlowerColors] = useState({
     petal: "#ffb6c1",
@@ -66,6 +67,16 @@ function CustomizerContent() {
   useEffect(() => {
     radiusOptionRef.current = radiusOption;
   }, [radiusOption]);
+
+  // 로컬 환경(호스트네임)에서만 특정 버튼 노출
+  useEffect(() => {
+    try {
+      const host = window.location.hostname;
+      setIsLocal(host === "localhost" || host === "127.0.0.1");
+    } catch {
+      setIsLocal(false);
+    }
+  }, []);
 
   // 로드된 sizeIndex 를 즉시 적용 (옵션 이미 계산된 경우)
   const attemptApplyLoadedSelection = () => {
@@ -736,6 +747,36 @@ function CustomizerContent() {
                     throw new Error(t || `편집 PATCH 실패 ${patchRes.status}`);
                   }
                   console.log("[customizer] 변경 사항 저장 완료");
+
+                  // 저장 직후 썸네일 자동 업데이트
+                  try {
+                    setPatchingImage(true);
+                    const newUrl = await captureAndUploadScreenshot(id);
+                    if (newUrl) {
+                      const resPreview = await fetch(
+                        `${base}/api/works/${id}/preview-url`,
+                        {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ previewUrl: newUrl }),
+                        }
+                      );
+                      if (!resPreview.ok) {
+                        const t2 = await resPreview.text();
+                        throw new Error(
+                          t2 || `미리보기 URL 갱신 실패 ${resPreview.status}`
+                        );
+                      }
+                      console.log("[customizer] 썸네일 자동 업데이트 완료");
+                    }
+                  } catch (thumbErr) {
+                    console.error(
+                      "[customizer] 썸네일 자동 업데이트 실패",
+                      thumbErr
+                    );
+                  } finally {
+                    setPatchingImage(false);
+                  }
                 }
               } catch (e: unknown) {
                 const msg = e instanceof Error ? e.message : "저장 실패";
@@ -812,68 +853,71 @@ function CustomizerContent() {
             {deleteError}
           </div>
         )}
-        <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
-          <button
-            type="button"
-            disabled={imageUploading || saving || patchingImage || !savedWorkId}
-            style={{
-              padding: "6px 10px",
-              fontSize: 12,
-              border: "1px solid #ccc",
-              borderRadius: 4,
-            }}
-            onClick={async () => {
-              if (!savedWorkId) return;
-              const url = await captureAndUploadScreenshot(savedWorkId);
-              if (url) {
-                // 선택적으로 PATCH 재시도
-                try {
-                  setPatchingImage(true);
-                  const base = process.env.NEXT_PUBLIC_API_BASE_URL;
-                  const patchRes = await fetch(
-                    `${base}/api/works/${savedWorkId}/preview-url`,
-                    {
-                      method: "PATCH",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ previewUrl: url }),
-                    }
-                  );
-                  if (!patchRes.ok) {
-                    const t = await patchRes.text();
-                    throw new Error(t || `PATCH 실패 ${patchRes.status}`);
-                  }
-                  console.log("[customizer] 썸네일 재업로드 완료");
-                  // 이전 saveError 초기화 제거
-                } catch (pe: unknown) {
-                  const msg =
-                    pe instanceof Error
-                      ? pe.message
-                      : "썸네일 PATCH 실패(previewUrl)";
-                  console.error("[customizer] 썸네일 재업로드 실패", msg);
-                } finally {
-                  setPatchingImage(false);
-                }
+        {isLocal && (
+          <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
+            <button
+              type="button"
+              disabled={
+                imageUploading || saving || patchingImage || !savedWorkId
               }
-            }}
-          >
-            썸네일 재업로드
-          </button>
-          <button
-            type="button"
-            disabled={imageUploading || saving || !imageUploadedUrl}
-            style={{
-              padding: "6px 10px",
-              fontSize: 12,
-              border: "1px solid #ccc",
-              borderRadius: 4,
-            }}
-            onClick={() =>
-              imageUploadedUrl && window.open(imageUploadedUrl, "_blank")
-            }
-          >
-            업로드 이미지 열기
-          </button>
-        </div>
+              style={{
+                padding: "6px 10px",
+                fontSize: 12,
+                border: "1px solid #ccc",
+                borderRadius: 4,
+              }}
+              onClick={async () => {
+                if (!savedWorkId) return;
+                const url = await captureAndUploadScreenshot(savedWorkId);
+                if (url) {
+                  // 선택적으로 PATCH 재시도
+                  try {
+                    setPatchingImage(true);
+                    const base = process.env.NEXT_PUBLIC_API_BASE_URL;
+                    const patchRes = await fetch(
+                      `${base}/api/works/${savedWorkId}/preview-url`,
+                      {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ previewUrl: url }),
+                      }
+                    );
+                    if (!patchRes.ok) {
+                      const t = await patchRes.text();
+                      throw new Error(t || `PATCH 실패 ${patchRes.status}`);
+                    }
+                    console.log("[customizer] 썸네일 재업로드 완료");
+                  } catch (pe: unknown) {
+                    const msg =
+                      pe instanceof Error
+                        ? pe.message
+                        : "썸네일 PATCH 실패(previewUrl)";
+                    console.error("[customizer] 썸네일 재업로드 실패", msg);
+                  } finally {
+                    setPatchingImage(false);
+                  }
+                }
+              }}
+            >
+              썸네일 재업로드
+            </button>
+            <button
+              type="button"
+              disabled={imageUploading || saving || !imageUploadedUrl}
+              style={{
+                padding: "6px 10px",
+                fontSize: 12,
+                border: "1px solid #ccc",
+                borderRadius: 4,
+              }}
+              onClick={() =>
+                imageUploadedUrl && window.open(imageUploadedUrl, "_blank")
+              }
+            >
+              업로드 이미지 열기
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

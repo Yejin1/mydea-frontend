@@ -1,5 +1,5 @@
 "use client";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import styles from "./myworks.module.css";
 import type { WorkItem } from "./types";
@@ -62,7 +62,18 @@ export default function WorksClient({
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [deleting, startDelete] = useTransition();
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isLocal, setIsLocal] = useState(false);
   const total = initialResult.total;
+
+  // 로컬 환경(호스트네임 기준)에서만 ID 표시
+  useEffect(() => {
+    try {
+      const host = window.location.hostname;
+      setIsLocal(host === "localhost" || host === "127.0.0.1");
+    } catch {
+      setIsLocal(false);
+    }
+  }, []);
 
   const toggleSelect = (id: number) => {
     setSelectedIds((prev) =>
@@ -211,12 +222,15 @@ export default function WorksClient({
                       aria-label={checked ? "선택 해제" : "선택"}
                       style={{ marginRight: 8, cursor: "pointer" }}
                     />
-                    {/* 이름 표시는 숨김 (향후 사용 가능하도록 보존)
+                    {/* 이름 표시 일단 숨김
                     <div className={styles.name}>{w.name}</div>
                     */}
-                    <span style={{ color: "#888", fontSize: 12 }}>
-                      (id: {w.id})
-                    </span>
+
+                    {isLocal && (
+                      <span style={{ color: "#888", fontSize: 12 }}>
+                        (id: {w.id})
+                      </span>
+                    )}
                   </div>
                   <div className={styles.badges}>
                     <span
