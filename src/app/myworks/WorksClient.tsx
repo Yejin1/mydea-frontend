@@ -93,12 +93,7 @@ export default function WorksClient({
     setDeleteError(null);
     startDelete(async () => {
       try {
-        const base = (process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(
-          /\/$/,
-          ""
-        );
-        const url = base ? `${base}/api/works` : "/api/works";
-        const res = await fetch(url, {
+        const res = await fetch("/api/works", {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(selectedIds),

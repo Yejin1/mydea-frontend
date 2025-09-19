@@ -2,15 +2,16 @@ import WorksClient from "./WorksClient";
 
 export const dynamic = "force-dynamic";
 import { WorkItem, WorksResult, PaginatedResponse } from "./types";
+import { headers } from "next/headers";
 
 // 서버 컴포넌트: 목록 조회 (배열 또는 페이지 응답 모두 지원)
 async function fetchWorks(page = 0, size = 20): Promise<WorksResult> {
-  const base = process.env.NEXT_PUBLIC_API_BASE_URL;
-
   const userId = 1; // TODO: 인증 연동 후 동적 값으로 교체
-  console.log(base);
-  console.log("목록화면");
-  const url = `${base}/api/works?userId=${userId}&page=${page}&size=${size}`;
+  const h = await headers();
+  const proto = h.get("x-forwarded-proto") ?? "http";
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
+  const origin = `${proto}://${host}`;
+  const url = `${origin}/api/works?userId=${userId}&page=${page}&size=${size}`;
   try {
     const res = await fetch(url, {
       cache: "no-store",
@@ -55,7 +56,6 @@ async function fetchWorks(page = 0, size = 20): Promise<WorksResult> {
       };
     }
     const p = data as Partial<PaginatedResponse>;
-    console.log(p);
     if (p && Array.isArray(p.content)) {
       if (process.env.NODE_ENV !== "production") {
         console.log("[myworks] works fetch success (paginated)", {

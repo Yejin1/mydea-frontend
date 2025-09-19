@@ -1,9 +1,16 @@
 "use client";
-import BeadsViewer from "./_components/BeadsViewer";
-import BeadFlowerViewer from "./_components/FlowerViewer";
+import ViewerSwitch from "./_components/ViewerSwitch";
+import SettingsPanel from "./_components/SettingsPanel";
 import { useEffect, useMemo, useState, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import styles from "./customizer.module.css";
+import {
+  BEAD_OUTER,
+  GAP_PADDING,
+  PETAL_OFFSET,
+  CLEARANCE_MARGIN,
+  computeOptions,
+} from "@/lib/customizerMath";
 import { PretendardRegular, PretendardExtraBold } from "@/app/fonts";
 
 type Accessory = "ring" | "bracelet" | "necklace";
@@ -169,83 +176,9 @@ function CustomizerContent() {
     };
   }, [initialWorkId, savedWorkId]);
 
-  // 계산에 필요한 상수
-  const beadOuter = 0.15;
-  const gapPadding = 0.9;
-  const beadWorldGap = 2 * beadOuter + gapPadding;
-  const petalOffset = 1.4;
-  const clearanceMargin = 0.2;
-  const flowerClearanceWorld = petalOffset + beadOuter + clearanceMargin;
-  const flowerGapRatio = 0.3;
-
-  function computeOptions(
-    acc: "ring" | "bracelet" | "necklace",
-    colorCount: number,
-    design: "basic" | "flower",
-    flowersBase: number,
-    beadWorldGap: number,
-    flowerClearanceWorld: number
-  ) {
-    let minCount = 24,
-      maxCount = 36;
-    if (acc === "bracelet") {
-      minCount = 90;
-      maxCount = 126;
-    }
-    if (acc === "necklace") {
-      minCount = 228;
-      maxCount = 282;
-    }
-
-    const countToRadius = (count: number) => count / 5;
-    const countToSizeMm = (count: number) => Math.round((count * 5) / 3);
-
-    if (design === "basic") {
-      const patternLen = Math.max(1, colorCount);
-      const start = Math.ceil(minCount / patternLen) * patternLen;
-      const counts: number[] = [];
-      for (let c = start; c <= maxCount; c += patternLen) counts.push(c);
-      const radii = counts.map(countToRadius);
-      const sizes = counts.map(countToSizeMm);
-      return { counts, radii, sizes, auto: sizes[0] ?? 0, flowersArr: [] };
-    }
-
-    // 꽃 모드
-    // 한 개의 꽃 세그먼트(꽃 + 주변 비즈들)가 차지하는 기본 선형 길이 계산
-    const baseLinear = flowerClearanceWorld + colorCount * beadWorldGap; // 기본 길이(L_base)
-    const gapRatio = flowerGapRatio; // 간격 비율
-    const L_total_per_segment = baseLinear * (1 + gapRatio); // 세그먼트 총 길이 = (꽃 + 비즈) + 간격
-
-    const flowersMin = 4;
-    const flowersMax = 40;
-
-    const flowersArr: number[] = [];
-    const counts: number[] = [];
-    const radii: number[] = [];
-    const sizes: number[] = [];
-
-    for (let F = flowersMin; F <= flowersMax; F++) {
-      // 일정 간격을 유지하며 선형 길이로부터 이상적인 반지름 계산
-      const R_ideal = (L_total_per_segment * F) / (2 * Math.PI);
-      // 기존 규칙(count = R * 5)에 맞추어 정수 비즈 개수로 스냅
-      const countApprox = Math.round(R_ideal * 5);
-      if (countApprox < minCount || countApprox > maxCount) continue;
-      const R = countApprox / 5; // 실제 사용되는 스냅된 반지름
-      const sizeMm = countToSizeMm(countApprox);
-      flowersArr.push(F);
-      counts.push(countApprox);
-      radii.push(R);
-      sizes.push(sizeMm);
-    }
-
-    return {
-      counts,
-      radii,
-      sizes,
-      auto: sizes[0] ?? 0,
-      flowersArr,
-    };
-  }
+  // 계산에 필요한 상수 (util에서 가져옴)
+  const beadWorldGap = 2 * BEAD_OUTER + GAP_PADDING;
+  const flowerClearanceWorld = PETAL_OFFSET + BEAD_OUTER + CLEARANCE_MARGIN;
 
   // accessory, colors.length, design, flowers 변화시에만 파생 옵션 재계산
   const derived = useMemo(
@@ -404,517 +337,255 @@ function CustomizerContent() {
     <div className={styles.pageLayout}>
       {/* 미리보기 */}
       <div className={`${styles.canvasArea}`} ref={canvasWrapperRef}>
-        {design === "flower" ? (
-          <BeadFlowerViewer
-            colors={colors}
-            count={count}
-            flowers={flowersOptions[selectedIdx] || 6}
-            ringRadius={radius}
-            petalColor={flowerColors.petal}
-            centerColor={flowerColors.center}
-            cameraDistance={cameraDistance}
-          />
-        ) : (
-          <BeadsViewer
-            colors={colors}
-            count={count}
-            ringRadius={radius}
-            cameraDistance={cameraDistance}
-          />
-        )}
+        <ViewerSwitch
+          design={design}
+          colors={colors}
+          count={count}
+          flowers={flowersOptions[selectedIdx] || 6}
+          ringRadius={radius}
+          petalColor={flowerColors.petal}
+          centerColor={flowerColors.center}
+          cameraDistance={cameraDistance}
+        />
       </div>
 
       {/* 설정 패널 */}
-      <div className={`${styles.settingsBox} ${PretendardRegular.className}`}>
-        {/* 악세사리 종류 */}
-        <div className={styles.rowAccessory}>
-          <label
-            className={`${PretendardExtraBold.variable} ${styles.labelStrong}`}
-          >
-            악세사리
-          </label>
-          <div className={styles.radioGroupInline}>
-            <label>
-              <input
-                type="radio"
-                name="accessory"
-                value="ring"
-                checked={accessory === "ring"}
-                onChange={() => setAccessory("ring")}
-              />{" "}
-              반지
-            </label>
-            <label>
-              <input
-                type="radio"
-                name="accessory"
-                value="bracelet"
-                checked={accessory === "bracelet"}
-                onChange={() => setAccessory("bracelet")}
-              />{" "}
-              팔찌
-            </label>
-            <label>
-              <input
-                type="radio"
-                name="accessory"
-                value="necklace"
-                checked={accessory === "necklace"}
-                onChange={() => setAccessory("necklace")}
-              />{" "}
-              목걸이
-            </label>
-          </div>
-        </div>
-
-        {/* 데코 타입 */}
-        <div className={styles.designRadioGroup}>
-          <label
-            className={`${PretendardExtraBold.variable} ${styles.labelStrongInline}`}
-          >
-            데코 타입
-          </label>
-          <button
-            type="button"
-            className={
-              design === "basic"
-                ? `${styles.designRadioBtn} ${styles.selected}`
-                : styles.designRadioBtn
-            }
-            onClick={() => setDesign("basic")}
-          >
-            기본
-          </button>
-          <button
-            type="button"
-            className={
-              design === "flower"
-                ? `${styles.designRadioBtn} ${styles.selected}`
-                : styles.designRadioBtn
-            }
-            onClick={() => setDesign("flower")}
-          >
-            꽃
-          </button>
-        </div>
-
-        {/* 꽃 옵션 */}
-        {design === "flower" && (
-          <div className={styles.flowerOptions}>
-            <div className={styles.colorRow}>
-              <label
-                className={`${PretendardExtraBold.variable} ${styles.labelStrong}`}
-              >
-                꽃잎 색상
-              </label>
-              <input
-                type="color"
-                value={flowerColors.petal}
-                onChange={(e) =>
-                  setFlowerColors({ ...flowerColors, petal: e.target.value })
-                }
-                className={styles.colorInputSmall}
-              />
-            </div>
-            <div className={styles.colorRow}>
-              <label
-                className={`${PretendardExtraBold.variable} ${styles.labelStrong}`}
-              >
-                중앙 색상
-              </label>
-              <input
-                type="color"
-                value={flowerColors.center}
-                onChange={(e) =>
-                  setFlowerColors({ ...flowerColors, center: e.target.value })
-                }
-                className={styles.colorInputSmall}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* 색상 선택 */}
-        <div className={styles.colorsSection}>
-          <label
-            className={`${PretendardExtraBold.variable} ${styles.labelStrongInline}`}
-          >
-            색상 선택
-            <span className={styles.tooltipWrapper}>
-              <span
-                className={styles.infoIcon}
-                onMouseEnter={() => setTooltipIdx(0)}
-                onMouseLeave={() => setTooltipIdx(null)}
-              >
-                i
-              </span>
-              <span
-                className={styles.infoTooltip}
-                style={{ display: tooltipIdx === 0 ? "block" : "none" }}
-              >
-                최소 1개, 최대 7개까지 색상을 추가할 수 있습니다.
-              </span>
-            </span>
-          </label>
-
-          {colors.map((color, idx) => (
-            <div key={idx} className={styles.colorRow}>
-              <input
-                type="color"
-                value={color}
-                onChange={(e) => handleColorChange(idx, e.target.value)}
-                className={styles.colorInput}
-              />
-              <button
-                type="button"
-                onClick={addColor}
-                disabled={colors.length >= 7}
-                className={styles.colorBtn}
-              >
-                +
-              </button>
-              <button
-                type="button"
-                onClick={() => removeColor(idx)}
-                disabled={colors.length <= 1}
-                className={styles.colorBtn}
-              >
-                -
-              </button>
-            </div>
-          ))}
-        </div>
-
-        {/* 사이즈 선택 */}
-        <div className={styles.sizeSection}>
-          <label
-            className={`${styles.sizeLabel} ${PretendardExtraBold.variable} ${styles.labelStrongInline}`}
-          >
-            사이즈
-            <span className={styles.tooltipWrapper}>
-              <span
-                className={styles.infoIcon}
-                onMouseEnter={() => setTooltipIdx(1)}
-                onMouseLeave={() => setTooltipIdx(null)}
-              >
-                i
-              </span>
-              <span
-                className={styles.infoTooltip}
-                style={{ display: tooltipIdx === 1 ? "block" : "none" }}
-              >
-                사이즈는 선택한 색상 개수에 따라 자동 계산되며, 수작업 특성에
-                따라 약간의 오차가 발생할 수 있습니다.
-                <br />
-                (반지의 경우 ±0.3cm, 목걸이·팔찌의 경우 ±1cm)
-              </span>
-            </span>
-          </label>
-          <div className={styles.sizeSelectWrap}>
-            <select
-              value={size}
-              onChange={(e) => {
-                const idx = sizeOption.findIndex(
-                  (opt) => String(opt) === e.target.value
+      <SettingsPanel
+        isLocal={isLocal}
+        design={design}
+        setDesign={setDesign}
+        accessory={accessory}
+        setAccessory={setAccessory}
+        colors={colors}
+        onColorChange={handleColorChange}
+        onAddColor={addColor}
+        onRemoveColor={removeColor}
+        size={size}
+        sizeOption={sizeOption}
+        countOption={countOption}
+        radiusOption={radiusOption}
+        selectedIdx={selectedIdx}
+        setSelectedIdx={setSelectedIdx}
+        setSize={setSize}
+        setCount={setCount}
+        setRadius={setRadius}
+        flowerColors={flowerColors}
+        setFlowerColors={setFlowerColors}
+        flowersOptions={flowersOptions}
+        saving={saving}
+        patchingImage={patchingImage}
+        loadingExisting={loadingExisting}
+        isEditMode={isEditMode}
+        onSave={async () => {
+          try {
+            setSaving(true);
+            if (!isEditMode) {
+              // 생성
+              const createPayload = {
+                userId: 1,
+                name: `${design === "flower" ? "플라워" : "베이직"} ${
+                  accessory === "ring"
+                    ? "반지"
+                    : accessory === "bracelet"
+                    ? "팔찌"
+                    : "목걸이"
+                }`,
+                workType: accessory,
+                designType: design,
+                colors: colors,
+                flowerPetal: flowerColors.petal,
+                flowerCenter: flowerColors.center,
+                autoSize: autoSize,
+                radiusMm: radius,
+                sizeIndex: selectedIdx,
+                previewUrl: null,
+              };
+              const createRes = await fetch(`/api/works`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(createPayload),
+              });
+              if (!createRes.ok) {
+                const txt = await createRes.text();
+                throw new Error(
+                  txt || `Work 생성 실패 HTTP ${createRes.status}`
                 );
-                setSize(e.target.value);
-                setSelectedIdx(idx);
-                setCount(countOption[idx]);
-                setRadius(radiusOption[idx]);
-              }}
-              className={styles.sizeSelect}
-            >
-              {sizeOption.map((opt, idx) => (
-                <option key={idx} value={String(opt)}>
-                  {opt}mm
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div className={styles.actionButtons}>
-          <button
-            type="button"
-            className={styles.btnSave}
-            disabled={saving || patchingImage || loadingExisting}
-            onClick={async () => {
-              try {
-                setSaving(true);
-                if (!isEditMode) {
-                  // 생성
-                  const createPayload = {
-                    userId: 1,
-                    name: `${design === "flower" ? "플라워" : "베이직"} ${
-                      accessory === "ring"
-                        ? "반지"
-                        : accessory === "bracelet"
-                        ? "팔찌"
-                        : "목걸이"
-                    }`,
-                    workType: accessory,
-                    designType: design,
-                    colors: colors,
-                    flowerPetal: flowerColors.petal,
-                    flowerCenter: flowerColors.center,
-                    autoSize: autoSize,
-                    radiusMm: radius,
-                    sizeIndex: selectedIdx,
-                    previewUrl: null,
-                  };
-                  const createRes = await fetch(`/api/works`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(createPayload),
-                  });
-                  if (!createRes.ok) {
-                    const txt = await createRes.text();
-                    throw new Error(
-                      txt || `Work 생성 실패 HTTP ${createRes.status}`
-                    );
-                  }
-                  const created = await createRes.json();
-                  const newId = created?.id;
-                  if (!newId) throw new Error("생성된 work id 없음");
-                  setSavedWorkId(newId);
-                  console.log("[customizer] 기본 정보 저장 완료");
-                  // 썸네일 업로드
-                  setPatchingImage(true);
-                  const url = await captureAndUploadScreenshot(newId);
-                  if (url) {
-                    try {
-                      const patchRes = await fetch(
-                        `/api/works/${newId}/preview-url`,
-                        {
-                          method: "PATCH",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ previewUrl: url }),
-                        }
-                      );
-                      if (!patchRes.ok) {
-                        const t = await patchRes.text();
-                        throw new Error(
-                          t || `이미지 URL PATCH 실패 ${patchRes.status}`
-                        );
-                      }
-                      console.log("[customizer] 저장 및 썸네일 업로드 완료");
-                    } catch (pe: unknown) {
-                      const msg =
-                        pe instanceof Error
-                          ? pe.message
-                          : "미리보기 URL 갱신 실패";
-                      console.error(
-                        "[customizer] 썸네일 업로드 실패 메시지",
-                        msg
-                      );
+              }
+              const created = await createRes.json();
+              const newId = created?.id;
+              if (!newId) throw new Error("생성된 work id 없음");
+              setSavedWorkId(newId);
+              console.log("[customizer] 기본 정보 저장 완료");
+              // 썸네일 업로드
+              setPatchingImage(true);
+              const url = await captureAndUploadScreenshot(newId);
+              if (url) {
+                try {
+                  const patchRes = await fetch(
+                    `/api/works/${newId}/preview-url`,
+                    {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ previewUrl: url }),
                     }
-                  } else {
-                    console.error(
-                      "[customizer] 썸네일 업로드 실패(기본 정보는 저장됨)"
-                    );
-                  }
-                } else {
-                  // 수정
-                  const id = savedWorkId;
-                  if (!id) throw new Error("편집 ID 누락");
-                  const patchBody = {
-                    name: `${design === "flower" ? "플라워" : "베이직"} ${
-                      accessory === "ring"
-                        ? "반지"
-                        : accessory === "bracelet"
-                        ? "팔찌"
-                        : "목걸이"
-                    }`,
-                    workType: accessory,
-                    designType: design,
-                    colors: colors,
-                    flowerPetal: flowerColors.petal,
-                    flowerCenter: flowerColors.center,
-                    autoSize: autoSize,
-                    radiusMm: radius,
-                    sizeIndex: selectedIdx,
-                  };
-                  //기존 썸네일 보존. 재업로드를 별도 버튼으로 유지.
-                  const patchRes = await fetch(`/api/works/${id}`, {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(patchBody),
-                  });
+                  );
                   if (!patchRes.ok) {
                     const t = await patchRes.text();
-                    throw new Error(t || `편집 PATCH 실패 ${patchRes.status}`);
-                  }
-                  console.log("[customizer] 변경 사항 저장 완료");
-
-                  // 저장 직후 썸네일 자동 업데이트
-                  try {
-                    setPatchingImage(true);
-                    const newUrl = await captureAndUploadScreenshot(id);
-                    if (newUrl) {
-                      const resPreview = await fetch(
-                        `/api/works/${id}/preview-url`,
-                        {
-                          method: "PATCH",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ previewUrl: newUrl }),
-                        }
-                      );
-                      if (!resPreview.ok) {
-                        const t2 = await resPreview.text();
-                        throw new Error(
-                          t2 || `미리보기 URL 갱신 실패 ${resPreview.status}`
-                        );
-                      }
-                      console.log("[customizer] 썸네일 자동 업데이트 완료");
-                    }
-                  } catch (thumbErr) {
-                    console.error(
-                      "[customizer] 썸네일 자동 업데이트 실패",
-                      thumbErr
+                    throw new Error(
+                      t || `이미지 URL PATCH 실패 ${patchRes.status}`
                     );
-                  } finally {
-                    setPatchingImage(false);
                   }
+                  console.log("[customizer] 저장 및 썸네일 업로드 완료");
+                } catch (pe: unknown) {
+                  const msg =
+                    pe instanceof Error ? pe.message : "미리보기 URL 갱신 실패";
+                  console.error("[customizer] 썸네일 업로드 실패 메시지", msg);
                 }
-              } catch (e: unknown) {
-                const msg = e instanceof Error ? e.message : "저장 실패";
-                console.error("[customizer] 저장 실패 메시지", msg);
+              } else {
+                console.error(
+                  "[customizer] 썸네일 업로드 실패(기본 정보는 저장됨)"
+                );
+              }
+            } else {
+              // 수정
+              const id = savedWorkId;
+              if (!id) throw new Error("편집 ID 누락");
+              const patchBody = {
+                name: `${design === "flower" ? "플라워" : "베이직"} ${
+                  accessory === "ring"
+                    ? "반지"
+                    : accessory === "bracelet"
+                    ? "팔찌"
+                    : "목걸이"
+                }`,
+                workType: accessory,
+                designType: design,
+                colors: colors,
+                flowerPetal: flowerColors.petal,
+                flowerCenter: flowerColors.center,
+                autoSize: autoSize,
+                radiusMm: radius,
+                sizeIndex: selectedIdx,
+              };
+              //기존 썸네일 보존. 재업로드를 별도 버튼으로 유지.
+              const patchRes = await fetch(`/api/works/${id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(patchBody),
+              });
+              if (!patchRes.ok) {
+                const t = await patchRes.text();
+                throw new Error(t || `편집 PATCH 실패 ${patchRes.status}`);
+              }
+              console.log("[customizer] 변경 사항 저장 완료");
+
+              // 저장 직후 썸네일 자동 업데이트
+              try {
+                setPatchingImage(true);
+                const newUrl = await captureAndUploadScreenshot(id);
+                if (newUrl) {
+                  const resPreview = await fetch(
+                    `/api/works/${id}/preview-url`,
+                    {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ previewUrl: newUrl }),
+                    }
+                  );
+                  if (!resPreview.ok) {
+                    const t2 = await resPreview.text();
+                    throw new Error(
+                      t2 || `미리보기 URL 갱신 실패 ${resPreview.status}`
+                    );
+                  }
+                  console.log("[customizer] 썸네일 자동 업데이트 완료");
+                }
+              } catch (thumbErr) {
+                console.error(
+                  "[customizer] 썸네일 자동 업데이트 실패",
+                  thumbErr
+                );
               } finally {
-                setSaving(false);
                 setPatchingImage(false);
               }
-            }}
-          >
-            {loadingExisting
-              ? "불러오는 중..."
-              : saving
-              ? "저장중..."
-              : patchingImage
-              ? "이미지 반영중..."
-              : isEditMode
-              ? "변경 저장"
-              : "저장하기"}
-          </button>
-          <button
-            type="button"
-            className={styles.btnOrder}
-            disabled={saving}
-            onClick={() => {
-              if (saving) return;
-              alert("주문 기능은 준비중입니다.");
-            }}
-          >
-            주문하기
-          </button>
-          {isEditMode && (
-            <button
-              type="button"
-              className={styles.btnDelete}
-              disabled={saving || deleting}
-              onClick={async () => {
-                if (!savedWorkId || deleting) return;
-                if (
-                  !confirm(
-                    "정말 삭제하시겠습니까? 삭제 후에는 복구할 수 없습니다."
-                  )
-                )
-                  return;
-                try {
-                  setDeleteError(null);
-                  setDeleting(true);
-                  const res = await fetch(`/api/works`, {
-                    method: "DELETE",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify([savedWorkId]),
-                  });
-                  if (!res.ok) {
-                    const txt = await res.text();
-                    throw new Error(txt || `삭제 실패 (${res.status})`);
-                  }
-                  // 목록 페이지로 이동
-                  window.location.href = "/myworks";
-                } catch (pe: unknown) {
-                  const msg = pe instanceof Error ? pe.message : "삭제 실패";
-                  setDeleteError(msg);
-                } finally {
-                  setDeleting(false);
+            }
+          } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : "저장 실패";
+            console.error("[customizer] 저장 실패 메시지", msg);
+          } finally {
+            setSaving(false);
+            setPatchingImage(false);
+          }
+        }}
+        onOrder={() => {
+          if (saving) return;
+          alert("주문 기능은 준비중입니다.");
+        }}
+        deleting={deleting}
+        onDelete={async () => {
+          if (!savedWorkId || deleting) return;
+          if (
+            !confirm("정말 삭제하시겠습니까? 삭제 후에는 복구할 수 없습니다.")
+          )
+            return;
+          try {
+            setDeleteError(null);
+            setDeleting(true);
+            const res = await fetch(`/api/works`, {
+              method: "DELETE",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify([savedWorkId]),
+            });
+            if (!res.ok) {
+              const txt = await res.text();
+              throw new Error(txt || `삭제 실패 (${res.status})`);
+            }
+            window.location.href = "/myworks";
+          } catch (pe: unknown) {
+            const msg = pe instanceof Error ? pe.message : "삭제 실패";
+            setDeleteError(msg);
+          } finally {
+            setDeleting(false);
+          }
+        }}
+        deleteError={deleteError}
+        imageUploading={imageUploading}
+        savedWorkId={savedWorkId}
+        onReuploadThumb={async () => {
+          if (!savedWorkId) return;
+          const url = await captureAndUploadScreenshot(savedWorkId);
+          if (url) {
+            try {
+              setPatchingImage(true);
+              const patchRes = await fetch(
+                `/api/works/${savedWorkId}/preview-url`,
+                {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ previewUrl: url }),
                 }
-              }}
-            >
-              {deleting ? "삭제중..." : "삭제"}
-            </button>
-          )}
-        </div>
-        {deleteError && (
-          <div style={{ color: "#ff4d4f", fontSize: 12, marginTop: 4 }}>
-            {deleteError}
-          </div>
-        )}
-        {isLocal && (
-          <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
-            <button
-              type="button"
-              disabled={
-                imageUploading || saving || patchingImage || !savedWorkId
+              );
+              if (!patchRes.ok) {
+                const t = await patchRes.text();
+                throw new Error(t || `PATCH 실패 ${patchRes.status}`);
               }
-              style={{
-                padding: "6px 10px",
-                fontSize: 12,
-                border: "1px solid #ccc",
-                borderRadius: 4,
-              }}
-              onClick={async () => {
-                if (!savedWorkId) return;
-                const url = await captureAndUploadScreenshot(savedWorkId);
-                if (url) {
-                  // 선택적으로 PATCH 재시도
-                  try {
-                    setPatchingImage(true);
-                    const patchRes = await fetch(
-                      `/api/works/${savedWorkId}/preview-url`,
-                      {
-                        method: "PATCH",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ previewUrl: url }),
-                      }
-                    );
-                    if (!patchRes.ok) {
-                      const t = await patchRes.text();
-                      throw new Error(t || `PATCH 실패 ${patchRes.status}`);
-                    }
-                    console.log("[customizer] 썸네일 재업로드 완료");
-                  } catch (pe: unknown) {
-                    const msg =
-                      pe instanceof Error
-                        ? pe.message
-                        : "썸네일 PATCH 실패(previewUrl)";
-                    console.error("[customizer] 썸네일 재업로드 실패", msg);
-                  } finally {
-                    setPatchingImage(false);
-                  }
-                }
-              }}
-            >
-              썸네일 재업로드
-            </button>
-            <button
-              type="button"
-              disabled={imageUploading || saving || !imageUploadedUrl}
-              style={{
-                padding: "6px 10px",
-                fontSize: 12,
-                border: "1px solid #ccc",
-                borderRadius: 4,
-              }}
-              onClick={() =>
-                imageUploadedUrl && window.open(imageUploadedUrl, "_blank")
-              }
-            >
-              업로드 이미지 열기
-            </button>
-          </div>
-        )}
-      </div>
+              console.log("[customizer] 썸네일 재업로드 완료");
+            } catch (pe: unknown) {
+              const msg =
+                pe instanceof Error
+                  ? pe.message
+                  : "썸네일 PATCH 실패(previewUrl)";
+              console.error("[customizer] 썸네일 재업로드 실패", msg);
+            } finally {
+              setPatchingImage(false);
+            }
+          }
+        }}
+        onOpenUploaded={() =>
+          imageUploadedUrl && window.open(imageUploadedUrl, "_blank")
+        }
+        imageUploadedUrl={imageUploadedUrl}
+      />
     </div>
   );
 }
