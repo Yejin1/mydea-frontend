@@ -22,19 +22,35 @@ type Props = {
   centerColor?: string;
 };
 
-export default function ViewerSwitch(props: Props) {
-  const { design, ...rest } = props;
+export default function ViewerSwitch({
+  design,
+  colors,
+  count,
+  ringRadius,
+  cameraDistance,
+  flowers,
+  petalColor,
+  centerColor,
+}: Props) {
   if (design === "flower") {
-    const { flowers, petalColor, centerColor, ...common } = rest as any;
     return (
       <FlowerViewer
-        {...common}
-        flowers={flowers || 6}
-        petalColor={petalColor || "#ffb6c1"}
-        centerColor={centerColor || "#ffe066"}
+        colors={colors}
+        count={count}
+        ringRadius={ringRadius}
+        cameraDistance={cameraDistance}
+        flowers={flowers ?? 6}
+        petalColor={petalColor ?? "#ffb6c1"}
+        centerColor={centerColor ?? "#ffe066"}
       />
     );
   }
-  const common = rest as any;
-  return <BeadsViewer {...common} />;
+  return (
+    <BeadsViewer
+      colors={colors}
+      count={count}
+      ringRadius={ringRadius}
+      cameraDistance={cameraDistance}
+    />
+  );
 }
