@@ -7,6 +7,9 @@
   position: relative;
   z-index: 1;
   color: #504e4e;
+  /* 아주 연한 배경색 + 그라데이션으로 화면이 덜 허전하게 보이도록 */
+  background-color: #edebec; /* fallback */
+  background-image: linear-gradient(180deg, #ffffff 0%, #e3e0bb 95%);
 }
 
 .centerText {
