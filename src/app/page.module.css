@@ -7,8 +7,7 @@
   position: relative;
   z-index: 1;
   color: #504e4e;
-  /* 아주 연한 배경색 + 그라데이션으로 화면이 덜 허전하게 보이도록 */
-  background-color: #edebec; /* fallback */
+  background-color: #edebec; 
   background-image: linear-gradient(180deg, #ffffff 0%, #e3e0bb 95%);
 }
 
@@ -34,8 +33,9 @@
 .card {
   width: 220px;
   height: 240px;
-  background: #fff;
+  background: #f4f6f4; 
   border-radius: 18px;
+  overflow: hidden; 
   box-shadow: 0 2px 12px rgba(0,0,0,0.08);
   display: flex;
   align-items: center;
