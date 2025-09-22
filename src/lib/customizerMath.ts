@@ -5,6 +5,50 @@ export const CLEARANCE_MARGIN = 0.2;
 export const FLOWER_GAP_RATIO = 0.3;
 
 export type Accessory = "ring" | "bracelet" | "necklace";
+export type Design = "basic" | "flower";
+
+// 악세사리 종류별, 데코 타입별 기본 가격
+export const ACCESSORY_PRICE: Record<Accessory, Record<Design, number>> = {
+  ring: {
+    basic: 3000, // 반지 기본
+    flower: 5000, // 반지 꽃
+  },
+  bracelet: {
+    basic: 5000, // 팔찌 기본
+    flower: 8000, // 팔찌 꽃
+  },
+  necklace: {
+    basic: 10000, // 목걸이 기본
+    flower: 15000, // 목걸이 꽃
+  },
+};
+
+export function getAccessoryPrice(
+  acc: Accessory,
+  design: Design = "basic"
+): number {
+  return ACCESSORY_PRICE[acc][design];
+}
+
+//기준(mm) 초과분에 대해 1m(1000mm) 당 100원 비례 부과
+export const SURCHARGE_PER_MM = 100; // 1mm 당 추가요금
+export const ACCESSORY_SURCHARGE_THRESHOLDS: Record<Accessory, number> = {
+  ring: 48,
+  bracelet: 175,
+  necklace: 420,
+};
+
+export function getAccessoryTotalPrice(
+  acc: Accessory,
+  sizeMm: number,
+  design: "basic" | "flower"
+): number {
+  const base = getAccessoryPrice(acc, design);
+  const threshold = ACCESSORY_SURCHARGE_THRESHOLDS[acc] ?? 0;
+  const excessMm = Math.max(0, (sizeMm || 0) - threshold);
+  const surcharge = excessMm * SURCHARGE_PER_MM;
+  return base + surcharge;
+}
 
 export function computeOptions(
   acc: Accessory,

@@ -26,6 +26,21 @@
   min-width: 300px;
 }
 
+.priceRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.priceValue {
+  font-weight: 800;
+  color: #d14a7a;
+}
+
 .sizeLabel {
   display: flex;
   align-items: center;
@@ -59,6 +74,11 @@
   padding: 6px 12px;
   white-space: nowrap;
   z-index: 10;
+}
+
+.tooltipWrapper:hover .infoTooltip,
+.tooltipWrapper:focus-within .infoTooltip {
+  display: block;
 }
 
 .designRadioGroup {

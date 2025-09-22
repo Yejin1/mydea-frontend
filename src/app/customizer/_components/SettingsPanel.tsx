@@ -1,6 +1,11 @@
 "use client";
 import { PretendardRegular, PretendardExtraBold } from "@/app/fonts";
 import styles from "../customizer.module.css";
+import {
+  getAccessoryTotalPrice,
+  ACCESSORY_SURCHARGE_THRESHOLDS,
+  SURCHARGE_PER_MM,
+} from "@/lib/customizerMath";
 
 type Accessory = "ring" | "bracelet" | "necklace";
 
@@ -80,6 +85,12 @@ export default function SettingsPanel(p: Props) {
     onOpenUploaded,
     imageUploadedUrl,
   } = p;
+
+  const sizeMm = Number(size) || 0;
+  const threshold = ACCESSORY_SURCHARGE_THRESHOLDS[accessory] ?? 0;
+  const excessMm = Math.max(0, sizeMm - threshold);
+  const surcharge = excessMm * SURCHARGE_PER_MM;
+  const totalPrice = getAccessoryTotalPrice(accessory, sizeMm, design);
 
   return (
     <div className={`${styles.settingsBox} ${PretendardRegular.className}`}>
@@ -221,6 +232,21 @@ export default function SettingsPanel(p: Props) {
           className={`${styles.sizeLabel} ${PretendardExtraBold.variable} ${styles.labelStrongInline}`}
         >
           사이즈
+          <span className={styles.tooltipWrapper} tabIndex={0}>
+            <span
+              className={styles.infoIcon}
+              aria-label="사이즈 옵션 안내"
+              role="img"
+            >
+              i
+            </span>
+            <span className={styles.infoTooltip}>
+              선택한 색상 개수({colors.length}개)에 따라 가능한 옵션이 자동
+              계산됩니다.
+              <br />
+              색상을 추가/제거하면 사이즈 옵션이 업데이트돼요.
+            </span>
+          </span>
         </label>
         <div className={styles.sizeSelectWrap}>
           <select
@@ -243,6 +269,49 @@ export default function SettingsPanel(p: Props) {
             ))}
           </select>
         </div>
+      </div>
+
+      {/* 가격 표기 (사이즈 아래로 이동) */}
+      <div className={styles.priceRow}>
+        <span
+          className={`${PretendardExtraBold.variable} ${styles.labelStrong}`}
+        >
+          가격
+          <span className={styles.tooltipWrapper} tabIndex={0}>
+            <span
+              className={styles.infoIcon}
+              aria-label="가격 책정 기준"
+              role="img"
+            >
+              i
+            </span>
+            <span className={styles.infoTooltip}>
+              기본 가격을 기준으로, 사이즈에 따른 추가요금이 발생합니다.
+              <br />
+              <br />
+              악세사리 종류별 기본 가격
+              <br />• 반지 (기본) 3,000원 / (꽃) 5,000원
+              <br />• 팔찌 (기본) 5,000원 / (꽃) 8,000원
+              <br />• 목걸이 (기본) 10,000원 / (꽃) 15,000원
+              <br />
+              <br />
+              추가요금: 기준 초과분 1mm 당 100원
+              <br />• 반지 {ACCESSORY_SURCHARGE_THRESHOLDS.ring}mm • 팔찌{" "}
+              {ACCESSORY_SURCHARGE_THRESHOLDS.bracelet}mm • 목걸이{" "}
+              {ACCESSORY_SURCHARGE_THRESHOLDS.necklace}mm
+              {excessMm > 0 && (
+                <>
+                  <br />
+                  <br />
+                  현재 길이 {sizeMm}mm, 추가요금 {surcharge.toLocaleString()}원
+                </>
+              )}
+            </span>
+          </span>
+        </span>
+        <span className={styles.priceValue}>
+          {totalPrice.toLocaleString()}원
+        </span>
       </div>
 
       {/* 액션 버튼 */}
