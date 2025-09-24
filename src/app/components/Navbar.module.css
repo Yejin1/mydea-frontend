@@ -62,4 +62,63 @@
 
 .navbar-right {
     position: relative;
+    display: flex;
+    align-items: center;
+    gap: 024px;
+}
+
+/* User menu */
+.userMenuWrap {
+    position: relative;
+}
+.userMenuButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    padding: 0;
+    color: rgb(76, 91, 75); 
+}
+.userMenuButton:hover { color: rgb(225, 236, 132); }
+
+.userIconMask {
+    width: 28px;
+    height: 28px;
+    display: inline-block;
+    background-color: currentColor; 
+    -webkit-mask: url('/nav_user_icon.svg') no-repeat center / contain;
+    mask: url('/nav_user_icon.svg') no-repeat center / contain;
+}
+.userDropdown {
+    position: absolute;
+    top: 42px;
+    right: 0;
+    min-width: 140px;
+    background: #fff;
+    border: 1px solid #e5e5e5;
+    border-radius: 8px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.12);
+    padding: 6px;
+    z-index: 10;
+}
+.userMenuItem {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 8px 10px;
+    font-size: 14px;
+    color: rgb(76, 91, 75);
+    text-decoration: none;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+}
+.userMenuItem:hover {
+    color: rgb(225, 236, 132);
+    background: transparent;
 }

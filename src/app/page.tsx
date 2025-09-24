@@ -1,10 +1,12 @@
 import styles from "./page.module.css";
 import Link from "next/link";
 import { RidiBatang } from "@/app/fonts";
+import DeployAlert from "@/app/components/DeployAlert";
 
 export default function Home() {
   return (
     <>
+      <DeployAlert />
       <div className={styles.sparkleBg}>
         <div className={styles.sparkle} style={{ top: "20%", left: "15%" }} />
         <div className={styles.sparkle} style={{ top: "40%", left: "60%" }} />
@@ -23,7 +25,7 @@ export default function Home() {
           {([21, 11, 24, 9, 26, 27] as const).map((id) => (
             <Link
               key={id}
-              href={`/customizer?workId=${id}`}
+              href={`/customizer?preset=true&workId=${id}`}
               prefetch={false}
               className={styles.card}
             >

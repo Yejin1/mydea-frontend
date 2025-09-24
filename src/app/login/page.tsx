@@ -4,8 +4,17 @@ import styles from "./page.module.css";
 import { PretendardRegular, PretendardExtraBold } from "@/app/fonts";
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function LoginPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  // next 우선, 그다음 redirect, 기본은 루트; 안전을 위해 내부 경로만 허용
+  const rawNext =
+    searchParams.get("next") || searchParams.get("redirect") || "/";
+  const redirectTo =
+    rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/";
+
   const [loginId, setLoginId] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -15,11 +24,25 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
     try {
-      // TODO: Replace with guest login logic
-      await new Promise((res) => setTimeout(res, 300));
+      // 고정된 방문자 계정으로 일반 로그인 API 호출 (쿠키 기반 세션 설정)
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ loginId: "guest", password: "20250924" }),
+      });
 
-      // Example: guest login success flow
-      window.location.href = "/";
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error || data.message || "방문자 로그인에 실패했습니다."
+        );
+      }
+
+      // Success: redirect to target or home
+      router.push(redirectTo);
     } catch (err: unknown) {
       const msg =
         err instanceof Error ? err.message : "방문자 로그인에 실패했습니다.";
@@ -53,16 +76,10 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "로그인에 실패했습니다.");
+        throw new Error(data.error || data.message || "로그인에 실패했습니다.");
       }
 
-      // Store access token (you might want to use a more secure storage method)
-      localStorage.setItem("accessToken", data.accessToken);
-      localStorage.setItem("tokenType", data.tokenType);
-      localStorage.setItem("account", JSON.stringify(data.account));
-
-      // Success: redirect to home
-      window.location.href = "/";
+      router.push(redirectTo);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "로그인에 실패했습니다.";
       setError(msg);

@@ -2,6 +2,7 @@
 import styles from "./Navbar.module.css";
 import Link from "next/link";
 import { MapoFlowerIsland, RidiBatang } from "../fonts";
+import UserMenu from "./UserMenu";
 
 function Navbar() {
   return (
@@ -15,17 +16,20 @@ function Navbar() {
           </div>
         </div>
       </div>
-      <ul className={`${styles["navbar-menu"]} ${RidiBatang.className}`}>
-        <li>
-          <Link href="/">Home</Link>
-        </li>
-        <li>
-          <Link href="/customizer">Make</Link>
-        </li>
-        <li>
-          <Link href="/myworks">My</Link>
-        </li>
-      </ul>
+      <div className={styles["navbar-right"]}>
+        <ul className={`${styles["navbar-menu"]} ${RidiBatang.className}`}>
+          <li>
+            <Link href="/">Home</Link>
+          </li>
+          <li>
+            <Link href="/customizer">Make</Link>
+          </li>
+          <li>
+            <Link href="/myworks">My</Link>
+          </li>
+        </ul>
+        <UserMenu />
+      </div>
     </nav>
   );
 }

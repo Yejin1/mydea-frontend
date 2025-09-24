@@ -18,6 +18,7 @@ type Accessory = "ring" | "bracelet" | "necklace";
 function CustomizerContent() {
   const search = useSearchParams();
   const initialWorkId = search.get("workId");
+  const isPresetMode = (search.get("preset") || "").toLowerCase() === "true";
   const [countOption, setCountOption] = useState<number[]>([]);
   const [radiusOption, setRadiusOption] = useState<number[]>([]);
   const [sizeOption, setSizeOption] = useState<number[]>([]);
@@ -102,21 +103,32 @@ function CustomizerContent() {
     loadedAppliedRef.current = true;
   };
 
-  // 기존 작업 불러오기 (StrictMode 중복 호출 시 AbortError 무시)
+  // 마운트 시 인증 확인 (미인증이면 로그인으로 유도)
+  // 인증 확인은 개별 API 호출에서 401 처리(자동 refresh → 실패 시 로그인 리다이렉트)
+
+  // 기존 작업 또는 프리셋 불러오기 (StrictMode 중복 호출 시 AbortError 무시)
   useEffect(() => {
     if (!initialWorkId) return;
-    if (savedWorkId) return;
+    if (savedWorkId) return; // 이미 생성/편집 모드 전환됨
     const controller = new AbortController();
     let finished = false;
     (async () => {
       try {
         setLoadingExisting(true);
-        const res = await fetch(`/api/works/${initialWorkId}`, {
+        const endpoint = isPresetMode
+          ? `/api/works/${initialWorkId}/preset`
+          : `/api/works/${initialWorkId}`;
+        const res = await apiFetch(endpoint, {
           signal: controller.signal,
         });
         if (!res.ok) {
           if (res.status !== 499)
-            console.error("[customizer] work load 실패", res.status);
+            console.error(
+              isPresetMode
+                ? "[customizer] preset load 실패"
+                : "[customizer] work load 실패",
+              res.status
+            );
           return;
         }
         const data = await res.json();
@@ -131,7 +143,8 @@ function CustomizerContent() {
           if (s === "basic" || s === "flower") return s;
           return null;
         };
-        if (data?.id) setSavedWorkId(data.id);
+  // preset 모드에서는 기존 ID를 저장하지 않음 → 항상 신규 생성 흐름
+  if (!isPresetMode && data?.id) setSavedWorkId(data.id);
         if (Array.isArray(data?.colors) && data.colors.length > 0)
           setColors(data.colors);
         // 새로운 'accessory' 키와 과거 'workType' 키 모두 허용
@@ -174,7 +187,7 @@ function CustomizerContent() {
       finished = true;
       controller.abort();
     };
-  }, [initialWorkId, savedWorkId]);
+  }, [initialWorkId, savedWorkId, isPresetMode]);
 
   // 계산에 필요한 상수 (util에서 가져옴)
   const beadWorldGap = 2 * BEAD_OUTER + GAP_PADDING;
@@ -333,6 +346,24 @@ function CustomizerContent() {
     }
   }
 
+  // 공통 fetch 래퍼: 401 → /api/auth/refresh → 재시도 → 그래도 401이면 /login 리다이렉트
+  async function apiFetch(input: RequestInfo | URL, init?: RequestInit) {
+    const res = await fetch(input, init);
+    if (res.status !== 401) return res;
+    const refreshed = await fetch("/api/auth/refresh", { method: "POST" });
+    if (refreshed.ok) {
+      const retry = await fetch(input, init);
+      if (retry.status !== 401) return retry;
+    }
+    if (typeof window !== "undefined") {
+      const next = encodeURIComponent(
+        window.location.pathname + window.location.search
+      );
+      window.location.href = `/login?next=${next}`;
+    }
+    return res;
+  }
+
   return (
     <div className={styles.pageLayout}>
       {/* 미리보기 */}
@@ -382,7 +413,6 @@ function CustomizerContent() {
             if (!isEditMode) {
               // 생성
               const createPayload = {
-                userId: 1,
                 name: `${design === "flower" ? "플라워" : "베이직"} ${
                   accessory === "ring"
                     ? "반지"
@@ -400,7 +430,7 @@ function CustomizerContent() {
                 sizeIndex: selectedIdx,
                 previewUrl: null,
               };
-              const createRes = await fetch(`/api/works`, {
+              const createRes = await apiFetch(`/api/works`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(createPayload),
@@ -421,7 +451,7 @@ function CustomizerContent() {
               const url = await captureAndUploadScreenshot(newId);
               if (url) {
                 try {
-                  const patchRes = await fetch(
+                  const patchRes = await apiFetch(
                     `/api/works/${newId}/preview-url`,
                     {
                       method: "PATCH",
@@ -468,7 +498,7 @@ function CustomizerContent() {
                 sizeIndex: selectedIdx,
               };
               //기존 썸네일 보존. 재업로드를 별도 버튼으로 유지.
-              const patchRes = await fetch(`/api/works/${id}`, {
+              const patchRes = await apiFetch(`/api/works/${id}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(patchBody),
@@ -484,7 +514,7 @@ function CustomizerContent() {
                 setPatchingImage(true);
                 const newUrl = await captureAndUploadScreenshot(id);
                 if (newUrl) {
-                  const resPreview = await fetch(
+                  const resPreview = await apiFetch(
                     `/api/works/${id}/preview-url`,
                     {
                       method: "PATCH",
@@ -531,7 +561,7 @@ function CustomizerContent() {
           try {
             setDeleteError(null);
             setDeleting(true);
-            const res = await fetch(`/api/works`, {
+            const res = await apiFetch(`/api/works`, {
               method: "DELETE",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify([savedWorkId]),
@@ -557,7 +587,7 @@ function CustomizerContent() {
           if (url) {
             try {
               setPatchingImage(true);
-              const patchRes = await fetch(
+              const patchRes = await apiFetch(
                 `/api/works/${savedWorkId}/preview-url`,
                 {
                   method: "PATCH",

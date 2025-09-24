@@ -276,7 +276,7 @@ export default function SettingsPanel(p: Props) {
         <span
           className={`${PretendardExtraBold.variable} ${styles.labelStrong}`}
         >
-          가격
+          가격{" "}
           <span className={styles.tooltipWrapper} tabIndex={0}>
             <span
               className={styles.infoIcon}

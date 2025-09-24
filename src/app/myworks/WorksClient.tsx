@@ -54,6 +54,35 @@ function formatDate(iso: string) {
   }
 }
 
+/**
+ * 공통 fetch 래퍼
+ * - 401이면 /api/auth/refresh 시도 후 원 요청 1회 재시도
+ * - 그래도 401이면 로그인 페이지로 이동(+ next 파라미터)
+ */
+async function apiFetch(
+  input: RequestInfo | URL,
+  init?: RequestInit
+): Promise<Response> {
+  const res = await fetch(input, init);
+  if (res.status !== 401) return res;
+
+  // 토큰 갱신 시도
+  const refreshed = await fetch("/api/auth/refresh", { method: "POST" });
+  if (refreshed.ok) {
+    const retry = await fetch(input, init);
+    if (retry.status !== 401) return retry;
+  }
+
+  // 여전히 401 → 로그인 페이지로
+  if (typeof window !== "undefined") {
+    const next = encodeURIComponent(
+      window.location.pathname + window.location.search
+    );
+    window.location.href = `/login?next=${next}`;
+  }
+  return res;
+}
+
 export default function WorksClient({
   initialResult,
   blobBase,
@@ -91,17 +120,21 @@ export default function WorksClient({
     if (selectedIds.length === 0) return;
     if (!confirm(`선택한 ${selectedIds.length}개 항목을 삭제할까요?`)) return;
     setDeleteError(null);
+
     startDelete(async () => {
       try {
-        const res = await fetch("/api/works", {
+        // ✅ authenticatedFetch 대신 apiFetch 사용
+        const res = await apiFetch("/api/works", {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(selectedIds),
         });
+
         if (!res.ok) {
           const txt = await res.text();
           throw new Error(txt || `삭제 실패 (${res.status})`);
         }
+
         // 성공 시 로컬 목록에서 제거
         setItems((prev) => prev.filter((w) => !selectedIds.includes(w.id)));
         setSelectedIds([]);
@@ -115,6 +148,15 @@ export default function WorksClient({
       }
     });
   };
+
+  // WorksClient 내부
+  async function load(page = 0, size = 20) {
+    const res = await fetch(`/api/works?page=${page}&size=${size}`, {
+      cache: "no-store",
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  }
 
   return (
     <div className={styles.pageWrap}>
@@ -220,7 +262,6 @@ export default function WorksClient({
                     {/* 이름 표시 일단 숨김
                     <div className={styles.name}>{w.name}</div>
                     */}
-
                     {isLocal && (
                       <span style={{ color: "#888", fontSize: 12 }}>
                         (id: {w.id})
