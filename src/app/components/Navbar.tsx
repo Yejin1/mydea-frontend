@@ -25,7 +25,9 @@ function Navbar() {
             <Link href="/customizer">Make</Link>
           </li>
           <li>
-            <Link href="/myworks">My</Link>
+            <Link href="/myworks" prefetch={false}>
+              My
+            </Link>
           </li>
         </ul>
         <UserMenu />

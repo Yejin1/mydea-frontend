@@ -2,7 +2,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-// 보호가 필요한 경로 프리픽스들만 골라서 거른다
 const PROTECTED = ["/myworks", "/settings"];
 
 export function middleware(req: NextRequest) {
@@ -12,7 +11,6 @@ export function middleware(req: NextRequest) {
   const needsAuth = PROTECTED.some((p) => pathname.startsWith(p));
   if (!needsAuth) return NextResponse.next();
 
-  // 2) API 라우트는 리다이렉트 대신 401을 주는 게 UX/호환성이 좋다
   const isApi = pathname.startsWith("/api/");
   const access = req.cookies.get("serverToken")?.value;
 
@@ -38,7 +36,7 @@ export function middleware(req: NextRequest) {
 export const config = {
   matcher: [
     // 보호 경로만 지정하는 방식(권장)
-    "/myworks/:path*",
+    "/myworks",
     "/settings/:path*",
   ],
 };

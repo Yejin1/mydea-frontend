@@ -41,8 +41,8 @@ function LoginPageInner() {
         );
       }
 
-      // Success: redirect to target or home
-      router.push(redirectTo);
+      router.replace(redirectTo);
+      router.refresh();
     } catch (err: unknown) {
       const msg =
         err instanceof Error ? err.message : "방문자 로그인에 실패했습니다.";
@@ -79,7 +79,8 @@ function LoginPageInner() {
         throw new Error(data.error || data.message || "로그인에 실패했습니다.");
       }
 
-      router.push(redirectTo);
+      router.replace(redirectTo);
+      router.refresh();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "로그인에 실패했습니다.";
       setError(msg);
@@ -166,7 +167,6 @@ function LoginPageInner() {
 }
 
 export default function LoginPage() {
-  // useSearchParams를 사용하는 내부 컴포넌트를 Suspense로 감싸 prerender 오류를 방지
   return (
     <Suspense fallback={<div className={styles.page}>로딩 중…</div>}>
       <LoginPageInner />

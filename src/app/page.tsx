@@ -1,12 +1,10 @@
 import styles from "./page.module.css";
 import Link from "next/link";
 import { RidiBatang } from "@/app/fonts";
-import DeployAlert from "@/app/components/DeployAlert";
 
 export default function Home() {
   return (
     <>
-      <DeployAlert />
       <div className={styles.sparkleBg}>
         <div className={styles.sparkle} style={{ top: "20%", left: "15%" }} />
         <div className={styles.sparkle} style={{ top: "40%", left: "60%" }} />
