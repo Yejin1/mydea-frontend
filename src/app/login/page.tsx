@@ -3,10 +3,10 @@
 import styles from "./page.module.css";
 import { PretendardRegular, PretendardExtraBold } from "@/app/fonts";
 import Link from "next/link";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function LoginPage() {
+function LoginPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   // next 우선, 그다음 redirect, 기본은 루트; 안전을 위해 내부 경로만 허용
@@ -162,5 +162,14 @@ export default function LoginPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  // useSearchParams를 사용하는 내부 컴포넌트를 Suspense로 감싸 prerender 오류를 방지
+  return (
+    <Suspense fallback={<div className={styles.page}>로딩 중…</div>}>
+      <LoginPageInner />
+    </Suspense>
   );
 }
