@@ -67,6 +67,13 @@ async function forward(upstream: Response) {
   });
 }
 
+type RefreshPayload = {
+  refreshToken?: string;
+  accessToken?: string;
+  serverToken?: string;
+  [key: string]: unknown;
+};
+
 // GET /api/works?...
 export async function GET(req: NextRequest) {
   const base = getBase();
@@ -134,9 +141,20 @@ export async function GET(req: NextRequest) {
       });
 
       if (refreshRes.ok) {
-        let payload: any = {};
+        const payload: RefreshPayload = {};
         try {
-          payload = await refreshRes.json();
+          const parsed: unknown = (await refreshRes.json()) as unknown;
+          if (parsed && typeof parsed === "object") {
+            const obj = parsed as Record<string, unknown>;
+            const rt = obj["refreshToken"];
+            const at = obj["accessToken"];
+            const st = obj["serverToken"];
+            if (typeof rt === "string") payload.refreshToken = rt;
+            if (typeof at === "string") payload.accessToken = at;
+            if (typeof st === "string") payload.serverToken = st;
+            for (const [k, v] of Object.entries(obj))
+              if (!(k in payload)) payload[k] = v;
+          }
         } catch {}
         const newAccess = payload?.serverToken || payload?.accessToken;
         if (newAccess) {

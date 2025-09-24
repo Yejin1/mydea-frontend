@@ -4,6 +4,18 @@ export const dynamic = "force-dynamic";
 import { WorkItem, WorksResult, PaginatedResponse } from "./types";
 import { headers } from "next/headers";
 
+// 서버가 배열 외에도 { items: WorkItem[], ... } 형태로 응답할 수 있어 이를 느슨히 표현
+type ItemsEnvelope = {
+  items?: unknown;
+  total?: unknown;
+  page?: unknown;
+  pageSize?: unknown;
+  totalPages?: unknown;
+  first?: unknown;
+  last?: unknown;
+  [key: string]: unknown;
+};
+
 // 서버 컴포넌트: 목록 조회 (배열 또는 페이지 응답 모두 지원)
 async function fetchWorks(page = 0, size = 20): Promise<WorksResult> {
   const h = await headers();
@@ -81,7 +93,7 @@ async function fetchWorks(page = 0, size = 20): Promise<WorksResult> {
       };
     }
 
-    const obj = data as any;
+    const obj = data as ItemsEnvelope;
     if (obj && Array.isArray(obj.items)) {
       const arr = obj.items as WorkItem[];
       if (process.env.NODE_ENV !== "production") {
@@ -95,8 +107,8 @@ async function fetchWorks(page = 0, size = 20): Promise<WorksResult> {
         page: typeof obj.page === "number" ? obj.page : 0,
         pageSize: typeof obj.pageSize === "number" ? obj.pageSize : arr.length,
         totalPages: typeof obj.totalPages === "number" ? obj.totalPages : 1,
-        first: (obj.first ?? true) as boolean,
-        last: (obj.last ?? true) as boolean,
+        first: typeof obj.first === "boolean" ? obj.first : true,
+        last: typeof obj.last === "boolean" ? obj.last : true,
       };
     }
 

@@ -1,5 +1,17 @@
 import { NextResponse } from "next/server";
 
+type RefreshResponse = {
+  refreshToken?: string;
+  accessToken?: string;
+  serverToken?: string;
+  // allow any other fields while keeping strong typing for the ones we use
+  [key: string]: unknown;
+};
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 function getBase() {
   const raw = (process.env.NEXT_PUBLIC_API_BASE_URL || "").trim();
   return raw.replace(/\/$/, "");
@@ -36,9 +48,22 @@ export async function POST(req: Request) {
       });
     }
 
-    let data: any = {};
+    // Parse response body safely without using 'any'
+    const data: RefreshResponse = {};
     try {
-      data = JSON.parse(text);
+      const parsed: unknown = JSON.parse(text);
+      if (isObject(parsed)) {
+        const rt = parsed["refreshToken"];
+        const at = parsed["accessToken"];
+        const st = parsed["serverToken"];
+        if (typeof rt === "string") data.refreshToken = rt;
+        if (typeof at === "string") data.accessToken = at;
+        if (typeof st === "string") data.serverToken = st;
+        // copy through any other keys for transparency
+        for (const [k, v] of Object.entries(parsed)) {
+          if (!(k in data)) data[k] = v;
+        }
+      }
     } catch {}
 
     const response = new NextResponse(JSON.stringify(data), {

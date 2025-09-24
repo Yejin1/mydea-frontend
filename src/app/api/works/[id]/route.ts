@@ -21,7 +21,12 @@ function backendHeaders(req: Request, access: string, refreshCookie?: string) {
   const h = new Headers();
   h.set("Authorization", `Bearer ${access}`);
   // 의미 있는 원본 헤더 전달
-  const passThrough = ["content-type", "accept", "accept-language", "user-agent"];
+  const passThrough = [
+    "content-type",
+    "accept",
+    "accept-language",
+    "user-agent",
+  ];
   for (const k of passThrough) {
     const v = req.headers.get(k);
     if (v) h.set(k, v);
@@ -30,7 +35,14 @@ function backendHeaders(req: Request, access: string, refreshCookie?: string) {
   return h;
 }
 
-function buildOutWithCookies(r: Response, payload?: any) {
+type RefreshPayload = {
+  refreshToken?: string;
+  accessToken?: string;
+  serverToken?: string;
+  [key: string]: unknown;
+};
+
+function buildOutWithCookies(r: Response, payload?: RefreshPayload) {
   const contentType = r.headers.get("content-type") || "application/json";
   const out = new NextResponse(r.body, {
     status: r.status,
@@ -111,9 +123,20 @@ export async function GET(
       cache: "no-store",
     });
     if (rr.ok) {
-      let payload: any = {};
+      const payload: RefreshPayload = {};
       try {
-        payload = await rr.json();
+        const parsed: unknown = (await rr.json()) as unknown;
+        if (parsed && typeof parsed === "object") {
+          const obj = parsed as Record<string, unknown>;
+          const rt = obj["refreshToken"];
+          const at = obj["accessToken"];
+          const st = obj["serverToken"];
+          if (typeof rt === "string") payload.refreshToken = rt;
+          if (typeof at === "string") payload.accessToken = at;
+          if (typeof st === "string") payload.serverToken = st;
+          for (const [k, v] of Object.entries(obj))
+            if (!(k in payload)) payload[k] = v;
+        }
       } catch {}
       const newAccess = payload?.serverToken || payload?.accessToken;
       if (newAccess) {
@@ -179,9 +202,20 @@ export async function PUT(
       cache: "no-store",
     });
     if (rr.ok) {
-      let payload: any = {};
+      const payload: RefreshPayload = {};
       try {
-        payload = await rr.json();
+        const parsed: unknown = (await rr.json()) as unknown;
+        if (parsed && typeof parsed === "object") {
+          const obj = parsed as Record<string, unknown>;
+          const rt = obj["refreshToken"];
+          const at = obj["accessToken"];
+          const st = obj["serverToken"];
+          if (typeof rt === "string") payload.refreshToken = rt;
+          if (typeof at === "string") payload.accessToken = at;
+          if (typeof st === "string") payload.serverToken = st;
+          for (const [k, v] of Object.entries(obj))
+            if (!(k in payload)) payload[k] = v;
+        }
       } catch {}
       const newAccess = payload?.serverToken || payload?.accessToken;
       if (newAccess) {
