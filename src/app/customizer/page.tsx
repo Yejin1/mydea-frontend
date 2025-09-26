@@ -10,6 +10,7 @@ import {
   PETAL_OFFSET,
   CLEARANCE_MARGIN,
   computeOptions,
+  getAccessoryTotalPrice,
 } from "@/lib/customizerMath";
 import { PretendardRegular, PretendardExtraBold } from "@/app/fonts";
 
@@ -143,8 +144,8 @@ function CustomizerContent() {
           if (s === "basic" || s === "flower") return s;
           return null;
         };
-  // preset 모드에서는 기존 ID를 저장하지 않음 → 항상 신규 생성 흐름
-  if (!isPresetMode && data?.id) setSavedWorkId(data.id);
+        // preset 모드에서는 기존 ID를 저장하지 않음 → 항상 신규 생성 흐름
+        if (!isPresetMode && data?.id) setSavedWorkId(data.id);
         if (Array.isArray(data?.colors) && data.colors.length > 0)
           setColors(data.colors);
         // 새로운 'accessory' 키와 과거 'workType' 키 모두 허용
@@ -550,6 +551,142 @@ function CustomizerContent() {
         onOrder={() => {
           if (saving) return;
           alert("주문 기능은 준비중입니다.");
+        }}
+        onAddToCart={async () => {
+          if (saving) return;
+          try {
+            // 1) work 이 아직 저장 안 되었으면 먼저 저장(create)
+            let workId = savedWorkId;
+            if (!workId) {
+              setSaving(true);
+              const createPayload = {
+                name: `${design === "flower" ? "플라워" : "베이직"} ${
+                  accessory === "ring"
+                    ? "반지"
+                    : accessory === "bracelet"
+                    ? "팔찌"
+                    : "목걸이"
+                }`,
+                workType: accessory,
+                designType: design,
+                colors: colors,
+                flowerPetal: flowerColors.petal,
+                flowerCenter: flowerColors.center,
+                autoSize: autoSize,
+                radiusMm: radius,
+                sizeIndex: selectedIdx,
+                previewUrl: null,
+              };
+              const createRes = await apiFetch(`/api/works`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(createPayload),
+              });
+              if (!createRes.ok) {
+                const txt = await createRes.text();
+                throw new Error(txt || `Work 생성 실패 (${createRes.status})`);
+              }
+              const created = await createRes.json();
+              workId = created?.id;
+              if (!workId) throw new Error("생성된 work id 없음");
+              setSavedWorkId(workId);
+              // 썸네일 즉시 업로드 (실패해도 장바구니 진행)
+              try {
+                setPatchingImage(true);
+                const url = await captureAndUploadScreenshot(workId);
+                if (url) {
+                  await apiFetch(`/api/works/${workId}/preview-url`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ previewUrl: url }),
+                  });
+                }
+              } catch (e) {
+                console.warn("[cart] 썸네일 업로드 실패 (무시)", e);
+              } finally {
+                setPatchingImage(false);
+              }
+            }
+
+            if (!workId) throw new Error("work 생성/확인 실패");
+
+            // 2) 옵션 hash 구성 (JSON 직렬화)
+            const sizeMm = Number(size) || 0;
+            const optionObj = {
+              accessory,
+              design,
+              colors,
+              flowerColors,
+              sizeMm,
+              sizeIndex: selectedIdx,
+              count,
+              radiusMm: radius,
+              flowers: flowersOptions[selectedIdx] || null,
+            };
+            const optionHash = JSON.stringify(optionObj);
+
+            // 3) 단가 계산
+            const unitPrice = getAccessoryTotalPrice(
+              accessory,
+              Number(size) || 0,
+              design
+            );
+
+            // 4) (임시) 이름 생성
+            const name = `${design === "flower" ? "플라워" : "베이직"} ${
+              accessory === "ring"
+                ? "반지"
+                : accessory === "bracelet"
+                ? "팔찌"
+                : "목걸이"
+            }`;
+
+            // 5) 썸네일 URL (있으면)
+            const thumbUrl = imageUploadedUrl || null;
+
+            // 6) 장바구니 API 요청
+            const cartPayload = {
+              workId,
+              name,
+              thumbUrl,
+              unitPrice,
+              quantity: 1,
+              optionHash,
+            };
+            const cartRes = await apiFetch(`/api/cart/items`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(cartPayload),
+            });
+            if (!cartRes.ok) {
+              const txt = await cartRes.text();
+              throw new Error(txt || `장바구니 담기 실패 (${cartRes.status})`);
+            }
+            // 일부 백엔드 구현이 204(No Content) 또는 빈 바디를 돌려줄 수 있으므로 안전 파싱
+            let cartData: any = null;
+            try {
+              if (cartRes.status !== 204) {
+                const raw = await cartRes.text();
+                if (raw.trim().length) {
+                  cartData = JSON.parse(raw);
+                }
+              }
+            } catch (je) {
+              console.warn("[cart] 응답 JSON 파싱 실패 (무시)", je);
+            }
+            if (process.env.NODE_ENV !== "production") {
+              console.log("[cart] upsert 완료", {
+                status: cartRes.status,
+                parsed: cartData,
+              });
+            }
+            alert("장바구니에 담았습니다.");
+          } catch (pe: unknown) {
+            const msg = pe instanceof Error ? pe.message : "장바구니 담기 실패";
+            alert(msg);
+          } finally {
+            setSaving(false);
+          }
         }}
         deleting={deleting}
         onDelete={async () => {

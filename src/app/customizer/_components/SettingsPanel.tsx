@@ -37,6 +37,7 @@ type Props = {
   isEditMode: boolean;
   onSave: () => Promise<void>;
   onOrder: () => void;
+  onAddToCart?: () => void;
   deleting: boolean;
   onDelete?: () => Promise<void>;
   deleteError?: string | null;
@@ -76,6 +77,7 @@ export default function SettingsPanel(p: Props) {
     isEditMode,
     onSave,
     onOrder,
+    onAddToCart,
     deleting,
     onDelete,
     deleteError,
@@ -331,6 +333,14 @@ export default function SettingsPanel(p: Props) {
             : isEditMode
             ? "변경 저장"
             : "저장하기"}
+        </button>
+        <button
+          type="button"
+          className={styles.btnCart}
+          disabled={saving || patchingImage || loadingExisting || deleting}
+          onClick={onAddToCart}
+        >
+          장바구니
         </button>
         <button
           type="button"

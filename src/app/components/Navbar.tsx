@@ -30,6 +30,9 @@ function Navbar() {
             </Link>
           </li>
         </ul>
+        <Link href="/cart" prefetch={false}>
+          <div className={styles.cartIconMask}></div>
+        </Link>
         <UserMenu />
       </div>
     </nav>

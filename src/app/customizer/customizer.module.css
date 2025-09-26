@@ -211,7 +211,8 @@
 
 .btnSave,
 .btnOrder,
-.btnDelete {
+.btnDelete,
+.btnCart {
   flex: 1;
   padding: 12px 0;
   border-radius: 8px;
@@ -235,6 +236,12 @@
   color: #fff;
 }
 
+.btnCart {
+  background: #fff4d6;
+  color: #a86400;
+  border: 1px solid #ffd27e;
+}
+
 .btnOrder:hover {
   background: #ff6e94;
 }
@@ -245,4 +252,8 @@
 
 .btnSave:hover {
   background: #e2e2e2;
+}
+
+.btnCart:hover {
+  background: #ffe7ad;
 }

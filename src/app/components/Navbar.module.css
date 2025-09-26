@@ -4,7 +4,7 @@
     justify-content: space-between;
     align-items: center;
     position: relative;
-    padding: 10px 27px;
+    padding: 5px 27px;
     background: linear-gradient(to right, rgb(243, 153, 153), rgb(209, 166, 160), rgb(239, 239, 195), rgb(186, 186, 152));
 
 }
@@ -75,8 +75,9 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
+    width: 28px;
+    height: 28px;
+    vertical-align: middle;
     border-radius: 50%;
     border: none;
     background: transparent;
@@ -87,9 +88,10 @@
 .userMenuButton:hover { color: rgb(225, 236, 132); }
 
 .userIconMask {
-    width: 28px;
-    height: 28px;
+    width: 24px;
+    height: 24px;
     display: inline-block;
+    vertical-align: middle;
     background-color: currentColor; 
     -webkit-mask: url('/nav_user_icon.svg') no-repeat center / contain;
     mask: url('/nav_user_icon.svg') no-repeat center / contain;
@@ -122,3 +124,15 @@
     color: rgb(225, 236, 132);
     background: transparent;
 }
+
+.cartIconMask {
+    width: 22px;
+    height: 22px;
+    vertical-align: middle;
+    display: inline-block;
+    background-color: currentColor; 
+    -webkit-mask: url('/nav_cart_icon.svg') no-repeat center / contain;
+    mask: url('/nav_cart_icon.svg') no-repeat center / contain;
+    color: rgb(76, 91, 75);
+    gap: 18px;
+}.cartIconMask:hover { color: rgb(225, 236, 132); }

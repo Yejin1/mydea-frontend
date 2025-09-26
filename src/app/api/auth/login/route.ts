@@ -12,8 +12,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 백엔드 API로 로그인 요청
-    const backendUrl =
-      process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+    const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
 
     const backendResponse = await fetch(`${backendUrl}/api/auth/login`, {
       method: "POST",
@@ -58,20 +57,8 @@ export async function POST(request: NextRequest) {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
-        maxAge: 24 * 60 * 60, // 1일
+        maxAge: 60 * 60, // 1시간
         path: "/",
-      });
-    }
-
-    //(임시) 디버깅용 로그
-    if (process.env.NODE_ENV !== "production") {
-      console.log("[auth.login] cookies set", {
-        hasRefresh: !!data.refreshToken,
-        serverTokenFrom: data.serverToken
-          ? "backend"
-          : data.accessToken
-          ? "accessToken"
-          : "none",
       });
     }
 
