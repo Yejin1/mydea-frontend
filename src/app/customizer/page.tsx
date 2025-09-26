@@ -12,7 +12,7 @@ import {
   computeOptions,
   getAccessoryTotalPrice,
 } from "@/lib/customizerMath";
-import { PretendardRegular, PretendardExtraBold } from "@/app/fonts";
+// import { PretendardRegular, PretendardExtraBold } from "@/app/fonts"; // unused fonts removed
 
 type Accessory = "ring" | "bracelet" | "necklace";
 
@@ -31,7 +31,7 @@ function CustomizerContent() {
   const [flowersOptions, setFlowersOptions] = useState<number[]>([]);
   // flowers는 현재 파생 옵션에 사용되지 않으므로 제거 (필요 시 복구)
   const flowers = 6;
-  const [tooltipIdx, setTooltipIdx] = useState<number | null>(null);
+  // const [tooltipIdx, setTooltipIdx] = useState<number | null>(null); // unused state removed
   const [design, setDesign] = useState<"basic" | "flower">("basic");
   const [saving, setSaving] = useState(false);
   // (saveError/saveSuccess 상태 제거: UI 미사용)
@@ -663,12 +663,31 @@ function CustomizerContent() {
               throw new Error(txt || `장바구니 담기 실패 (${cartRes.status})`);
             }
             // 일부 백엔드 구현이 204(No Content) 또는 빈 바디를 돌려줄 수 있으므로 안전 파싱
-            let cartData: any = null;
+            interface CartUpsertResponse {
+              [k: string]: unknown;
+              itemId?: number;
+              updated?: boolean;
+              created?: boolean;
+            }
+            let cartData: CartUpsertResponse | null = null;
             try {
               if (cartRes.status !== 204) {
                 const raw = await cartRes.text();
                 if (raw.trim().length) {
-                  cartData = JSON.parse(raw);
+                  const parsed: unknown = JSON.parse(raw);
+                  if (parsed && typeof parsed === "object") {
+                    const obj = parsed as Record<string, unknown>;
+                    const r: CartUpsertResponse = {};
+                    if (typeof obj["itemId"] === "number")
+                      r.itemId = obj["itemId"] as number;
+                    if (typeof obj["updated"] === "boolean")
+                      r.updated = obj["updated"] as boolean;
+                    if (typeof obj["created"] === "boolean")
+                      r.created = obj["created"] as boolean;
+                    for (const [k, v] of Object.entries(obj))
+                      if (!(k in r)) r[k] = v;
+                    cartData = r;
+                  }
                 }
               }
             } catch (je) {

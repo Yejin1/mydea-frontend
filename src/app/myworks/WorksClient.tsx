@@ -150,13 +150,13 @@ export default function WorksClient({
   };
 
   // WorksClient 내부
-  async function load(page = 0, size = 20) {
-    const res = await fetch(`/api/works?page=${page}&size=${size}`, {
-      cache: "no-store",
-    });
-    if (!res.ok) throw new Error(await res.text());
-    return res.json();
-  }
+  // async function load(page = 0, size = 20) {
+  //   const res = await fetch(`/api/works?page=${page}&size=${size}`, {
+  //     cache: "no-store",
+  //   });
+  //   if (!res.ok) throw new Error(await res.text());
+  //   return res.json();
+  // }
 
   return (
     <div className={styles.pageWrap}>

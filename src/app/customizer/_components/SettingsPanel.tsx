@@ -23,14 +23,14 @@ type Props = {
   sizeOption: number[];
   countOption: number[];
   radiusOption: number[];
-  selectedIdx: number;
-  setSelectedIdx: (i: number) => void;
+  // removed unused selectedIdx
+  // setSelectedIdx: (i: number) => void; // removed
   setSize: (s: string) => void;
   setCount: (n: number) => void;
   setRadius: (n: number) => void;
   flowerColors: { petal: string; center: string };
   setFlowerColors: (c: { petal: string; center: string }) => void;
-  flowersOptions: number[];
+  // flowersOptions removed (unused)
   saving: boolean;
   patchingImage: boolean;
   loadingExisting: boolean;
@@ -63,14 +63,11 @@ export default function SettingsPanel(p: Props) {
     sizeOption,
     countOption,
     radiusOption,
-    selectedIdx,
-    setSelectedIdx,
     setSize,
     setCount,
     setRadius,
     flowerColors,
     setFlowerColors,
-    flowersOptions,
     saving,
     patchingImage,
     loadingExisting,
@@ -258,7 +255,7 @@ export default function SettingsPanel(p: Props) {
                 (opt) => String(opt) === e.target.value
               );
               setSize(e.target.value);
-              setSelectedIdx(idx);
+              // selectedIdx removed
               setCount(countOption[idx]);
               setRadius(radiusOption[idx]);
             }}

@@ -68,21 +68,21 @@ export default function CartClient() {
       } catch {
         throw new Error("응답 JSON 파싱 실패");
       }
-      if (
-        data &&
-        typeof data === "object" &&
-        Array.isArray((data as any).items)
-      ) {
-        setItems((data as any).items as CartItem[]);
-        const t = (data as any).total;
-        if (typeof t === "number") setTotal(t);
-        else
-          setTotal(
-            ((data as any).items as CartItem[]).reduce(
-              (s, i) => s + i.quantity * i.unitPrice,
-              0
-            )
-          );
+      if (data && typeof data === "object") {
+        const obj = data as Record<string, unknown>;
+        const maybeItems = obj.items;
+        if (Array.isArray(maybeItems)) {
+          const typed: CartItem[] = maybeItems.filter(
+            (v): v is CartItem => !!v && typeof v === "object" && "itemId" in v
+          ) as CartItem[];
+          setItems(typed);
+          const tVal = obj.total;
+          if (typeof tVal === "number") setTotal(tVal);
+          else
+            setTotal(typed.reduce((s, i) => s + i.quantity * i.unitPrice, 0));
+        } else if (Array.isArray(data)) {
+          // fallback handled below
+        }
       } else if (Array.isArray(data)) {
         // 하위 호환: 바로 배열이면 total 재계산
         setItems(data as CartItem[]);

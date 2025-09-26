@@ -1,7 +1,7 @@
 "use client";
 
 import styles from "./page.module.css";
-import { PretendardRegular, PretendardExtraBold } from "@/app/fonts";
+import { PretendardRegular } from "@/app/fonts"; // remove unused PretendardExtraBold
 import Link from "next/link";
 import { useState } from "react";
 
@@ -85,8 +85,8 @@ export default function SignupPage() {
         throw new Error(msg);
       }
 
-  // 성공 시 모달 오픈
-  setSuccessOpen(true);
+      // 성공 시 모달 오픈
+      setSuccessOpen(true);
     } catch (err: unknown) {
       const msg =
         err instanceof Error ? err.message : "회원가입에 실패했습니다.";
@@ -285,7 +285,9 @@ export default function SignupPage() {
         <div className={styles.modalBackdrop}>
           <div className={styles.modal} role="dialog" aria-modal="true">
             <h2 className={styles.modalTitle}>가입이 완료되었습니다</h2>
-            <p className={styles.modalText}>이제 로그인 페이지로 이동할 수 있어요.</p>
+            <p className={styles.modalText}>
+              이제 로그인 페이지로 이동할 수 있어요.
+            </p>
             <div className={styles.modalActions}>
               <button
                 className={styles.button}

@@ -77,17 +77,16 @@ function passThroughResponse(r: Response) {
   return new NextResponse(r.body, { status: r.status, headers });
 }
 
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: { itemId: string } }
-) {
+export async function DELETE(req: NextRequest) {
   const base = getBase();
   if (!base)
     return NextResponse.json(
       { error: "API base not configured" },
       { status: 500 }
     );
-  const itemId = params.itemId;
+  // 동적 세그먼트 itemId를 경로에서 직접 추출 (타입 이슈 회피)
+  const pathname = new URL(req.url).pathname;
+  const itemId = pathname.split("/").pop() || "";
   if (!itemId || !/^\d+$/.test(itemId)) {
     return NextResponse.json({ error: "invalid itemId" }, { status: 400 });
   }
@@ -143,12 +142,4 @@ export async function DELETE(
   return out;
 }
 
-export function GET() {
-  return new NextResponse("Method Not Allowed", { status: 405 });
-}
-export function POST() {
-  return new NextResponse("Method Not Allowed", { status: 405 });
-}
-export function PATCH() {
-  return new NextResponse("Method Not Allowed", { status: 405 });
-}
+// 다른 메서드는 정의하지 않아 405 기본 처리(Next.js 기본 동작) 또는 필요시 별도 구현

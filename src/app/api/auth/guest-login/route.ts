@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     // 방문자용 로그인은 별도의 자격증명 없이 임시 토큰 발급
     const backendUrl = process.env.BACKEND_URL || "http://localhost:8080";
