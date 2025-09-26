@@ -23,8 +23,6 @@ type Props = {
   sizeOption: number[];
   countOption: number[];
   radiusOption: number[];
-  // removed unused selectedIdx
-  // setSelectedIdx: (i: number) => void; // removed
   setSize: (s: string) => void;
   setCount: (n: number) => void;
   setRadius: (n: number) => void;
@@ -255,7 +253,6 @@ export default function SettingsPanel(p: Props) {
                 (opt) => String(opt) === e.target.value
               );
               setSize(e.target.value);
-              // selectedIdx removed
               setCount(countOption[idx]);
               setRadius(radiusOption[idx]);
             }}

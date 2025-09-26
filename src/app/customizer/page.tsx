@@ -54,7 +54,7 @@ function CustomizerContent() {
 
   const [accessory, setAccessory] = useState<Accessory>("ring");
   const [autoSize, setAutoSize] = useState<number>(0);
-  const [selectedIdx, setSelectedIdx] = useState(0);
+  // selectedIdx state removed; index derived from size when needed
   const firstLoadRef = useRef(true);
   const canvasWrapperRef = useRef<HTMLDivElement | null>(null);
   // 로드된 작업의 sizeIndex/radius 적용 1회 반영용 refs
@@ -97,7 +97,7 @@ function CustomizerContent() {
     if (!so.length || !co.length || !ro.length) return; // 옵션 아직 준비 안됨
     let idx = loadedSizeIndexRef.current;
     if (idx < 0 || idx >= so.length) idx = 0;
-    setSelectedIdx(idx);
+  // index derived from sizeOption later
     setSize(String(so[idx]));
     setCount(co[idx]);
     setRadius(ro[idx]);
@@ -239,7 +239,6 @@ function CustomizerContent() {
     if (!loadedAppliedRef.current && loadedSizeIndexRef.current !== null) {
       let idx = loadedSizeIndexRef.current;
       if (idx < 0 || idx >= sizeOption.length) idx = 0;
-      setSelectedIdx(idx);
       setSize(String(sizeOption[idx]));
       setCount(countOption[idx]);
       setRadius(radiusOption[idx]);
@@ -248,13 +247,12 @@ function CustomizerContent() {
     }
 
     // 일반 흐름: selectedIdx 범위 보정 후 동기화
-    let current = selectedIdx;
-    if (current < 0 || current >= sizeOption.length) current = 0;
-    setSelectedIdx(current);
-    setSize(String(sizeOption[current]));
-    setCount(countOption[current]);
-    setRadius(radiusOption[current]);
-  }, [sizeOption, countOption, radiusOption, selectedIdx]);
+    const currentIdx = sizeOption.findIndex((v) => String(v) === size);
+    const applyIdx = currentIdx >= 0 ? currentIdx : 0;
+    setSize(String(sizeOption[applyIdx]));
+    setCount(countOption[applyIdx]);
+    setRadius(radiusOption[applyIdx]);
+  }, [sizeOption, countOption, radiusOption, size]);
 
   // 사이즈 옵션이 비었을 때 경고 & 선택값 초기화
   useEffect(() => {
@@ -266,7 +264,6 @@ function CustomizerContent() {
 
     if (sizeOption.length === 0) {
       setSize("");
-      setSelectedIdx(-1);
       setCount(0);
       setRadius(0);
       if (typeof window !== "undefined") {
@@ -278,7 +275,6 @@ function CustomizerContent() {
     const idx = sizeOption.findIndex((v) => String(v) === size);
     if (idx === -1) {
       setSize(String(sizeOption[0]));
-      setSelectedIdx(0);
       setCount(countOption[0]);
       setRadius(radiusOption[0]);
     }
@@ -373,7 +369,7 @@ function CustomizerContent() {
           design={design}
           colors={colors}
           count={count}
-          flowers={flowersOptions[selectedIdx] || 6}
+          flowers={flowersOptions[0] || 6}
           ringRadius={radius}
           petalColor={flowerColors.petal}
           centerColor={flowerColors.center}
@@ -396,14 +392,11 @@ function CustomizerContent() {
         sizeOption={sizeOption}
         countOption={countOption}
         radiusOption={radiusOption}
-        selectedIdx={selectedIdx}
-        setSelectedIdx={setSelectedIdx}
         setSize={setSize}
         setCount={setCount}
         setRadius={setRadius}
         flowerColors={flowerColors}
         setFlowerColors={setFlowerColors}
-        flowersOptions={flowersOptions}
         saving={saving}
         patchingImage={patchingImage}
         loadingExisting={loadingExisting}
@@ -428,7 +421,7 @@ function CustomizerContent() {
                 flowerCenter: flowerColors.center,
                 autoSize: autoSize,
                 radiusMm: radius,
-                sizeIndex: selectedIdx,
+                sizeIndex: sizeOption.findIndex((v) => String(v) === size),
                 previewUrl: null,
               };
               const createRes = await apiFetch(`/api/works`, {
@@ -496,7 +489,7 @@ function CustomizerContent() {
                 flowerCenter: flowerColors.center,
                 autoSize: autoSize,
                 radiusMm: radius,
-                sizeIndex: selectedIdx,
+                sizeIndex: sizeOption.findIndex((v) => String(v) === size),
               };
               //기존 썸네일 보존. 재업로드를 별도 버튼으로 유지.
               const patchRes = await apiFetch(`/api/works/${id}`, {
@@ -574,7 +567,7 @@ function CustomizerContent() {
                 flowerCenter: flowerColors.center,
                 autoSize: autoSize,
                 radiusMm: radius,
-                sizeIndex: selectedIdx,
+                sizeIndex: sizeOption.findIndex((v) => String(v) === size),
                 previewUrl: null,
               };
               const createRes = await apiFetch(`/api/works`, {
@@ -618,10 +611,10 @@ function CustomizerContent() {
               colors,
               flowerColors,
               sizeMm,
-              sizeIndex: selectedIdx,
+              sizeIndex: sizeOption.findIndex((v) => String(v) === size),
               count,
               radiusMm: radius,
-              flowers: flowersOptions[selectedIdx] || null,
+              flowers: flowersOptions[0] || null,
             };
             const optionHash = JSON.stringify(optionObj);
 
