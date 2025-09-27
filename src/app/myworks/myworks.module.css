@@ -87,7 +87,7 @@
 
 .nameRow {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
 }
 .name {
@@ -145,3 +145,51 @@
   cursor: pointer;
 }
 .refreshBtn:hover { background:#f7f7f7; }
+
+/* --- Added for refactored WorksClient.tsx (moved from inline styles) --- */
+.selectionBar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.selectAllLabel {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+}
+.deleteBtn {
+  padding: 6px 12px;
+  font-size: 13px;
+  background: #ff4d4f;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.deleteBtn:hover { background:#e64042; }
+.deleteBtnDisabled {
+  background: #eee;
+  color: #666;
+  cursor: default;
+}
+.errorMsg {
+  color: #ff4d4f;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.emptyHint {
+  margin-top: 12px;
+  font-size: 13px;
+  color: #888;
+}
+.localId {
+  color: #888;
+  font-size: 12px;
+}
+.checkbox { cursor: pointer; }

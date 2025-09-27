@@ -173,3 +173,24 @@
   color: #666;
   margin: 2px 4px 2px 0;
 }
+
+.errorMsg { color:#ff4d4f; font-size:14px; }
+.retryBtn { margin-top:12px; }
+.productColWidth { width:280px; }
+.optionsCell { max-width:240px; }
+.noImg { font-size:12px; color:#999; }
+.itemName { font-weight:600; }
+.itemWorkId { font-size:12px; color:#666; }
+.applyBtn {
+  margin-left:6px;
+  font-size:11px;
+  padding:4px 6px;
+  border:1px solid #ccc;
+  background:#fff;
+  border-radius:4px;
+  cursor:pointer;
+  transition: background .15s, opacity .15s;
+}
+.applyBtnLoading { background:#eee; }
+.applyBtnDisabled { opacity:.4; cursor:default; }
+.totalDiff { margin-left:6px; font-size:11px; color:#999; }

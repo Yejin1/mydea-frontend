@@ -257,3 +257,10 @@
 .btnCart:hover {
   background: #ffe7ad;
 }
+
+/* Suspense 로딩 fallback */
+.loadingFallback {
+  padding: 32px;
+  font-size: 16px;
+  color: #555;
+}

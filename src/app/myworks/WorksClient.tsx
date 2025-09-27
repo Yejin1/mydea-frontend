@@ -1,5 +1,11 @@
 "use client";
-import { useEffect, useState, useTransition } from "react";
+import {
+  useEffect,
+  useState,
+  useTransition,
+  useCallback,
+  useMemo,
+} from "react";
 import Link from "next/link";
 import styles from "./myworks.module.css";
 import type { WorkItem } from "./types";
@@ -88,7 +94,7 @@ export default function WorksClient({
   blobBase,
 }: WorksClientProps) {
   const [items, setItems] = useState<WorkItem[]>(initialResult.items);
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [deleting, startDelete] = useTransition();
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isLocal, setIsLocal] = useState(false);
@@ -104,30 +110,40 @@ export default function WorksClient({
     }
   }, []);
 
-  const toggleSelect = (id: number) => {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]
-    );
-  };
+  const toggleSelect = useCallback((id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
-  const allSelected = items.length > 0 && selectedIds.length === items.length;
-  const toggleSelectAll = () => {
-    if (allSelected) setSelectedIds([]);
-    else setSelectedIds(items.map((i) => i.id));
-  };
+  const allSelected = useMemo(
+    () => items.length > 0 && selectedIds.size === items.length,
+    [items, selectedIds]
+  );
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds((prev) => {
+      if (items.length === 0) return new Set(prev);
+      if (prev.size === items.length) return new Set();
+      return new Set(items.map((i) => i.id));
+    });
+  }, [items]);
 
   const handleDelete = () => {
-    if (selectedIds.length === 0) return;
-    if (!confirm(`선택한 ${selectedIds.length}개 항목을 삭제할까요?`)) return;
+    const count = selectedIds.size;
+    if (count === 0) return;
+    if (!confirm(`선택한 ${count}개 항목을 삭제할까요?`)) return;
     setDeleteError(null);
 
     startDelete(async () => {
       try {
-        // ✅ authenticatedFetch 대신 apiFetch 사용
         const res = await apiFetch("/api/works", {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(selectedIds),
+          body: JSON.stringify(Array.from(selectedIds)),
         });
 
         if (!res.ok) {
@@ -136,8 +152,8 @@ export default function WorksClient({
         }
 
         // 성공 시 로컬 목록에서 제거
-        setItems((prev) => prev.filter((w) => !selectedIds.includes(w.id)));
-        setSelectedIds([]);
+        setItems((prev) => prev.filter((w) => !selectedIds.has(w.id)));
+        setSelectedIds(new Set());
       } catch (e: unknown) {
         let msg = "삭제 실패";
         if (e && typeof e === "object" && "message" in e) {
@@ -165,57 +181,34 @@ export default function WorksClient({
         <div className={styles.countInfo}>{total}개</div>
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          gap: 8,
-          alignItems: "center",
-          marginBottom: 16,
-        }}
-      >
-        <label
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-            fontSize: 13,
-          }}
-        >
+      <div className={styles.selectionBar}>
+        <label className={styles.selectAllLabel}>
           <input
             type="checkbox"
             checked={allSelected}
             onChange={toggleSelectAll}
-          />{" "}
+          />
           전체선택
         </label>
         <button
           type="button"
           onClick={handleDelete}
-          disabled={selectedIds.length === 0 || deleting}
-          style={{
-            padding: "6px 12px",
-            fontSize: 13,
-            background: selectedIds.length === 0 ? "#eee" : "#ff4d4f",
-            color: selectedIds.length === 0 ? "#666" : "#fff",
-            border: "none",
-            borderRadius: 6,
-            cursor: selectedIds.length === 0 ? "default" : "pointer",
-          }}
+          disabled={selectedIds.size === 0 || deleting}
+          className={[
+            styles.deleteBtn,
+            selectedIds.size === 0 || deleting ? styles.deleteBtnDisabled : "",
+          ].join(" ")}
         >
-          {deleting ? "삭제중..." : `삭제 (${selectedIds.length})`}
+          {deleting ? "삭제중..." : `삭제 (${selectedIds.size})`}
         </button>
       </div>
 
-      {deleteError && (
-        <div style={{ color: "#ff4d4f", fontSize: 12, marginBottom: 8 }}>
-          {deleteError}
-        </div>
-      )}
+      {deleteError && <div className={styles.errorMsg}>{deleteError}</div>}
 
       {items.length === 0 ? (
         <div className={styles.emptyState}>
           저장된 작업이 없습니다.
-          <div style={{ marginTop: 12, fontSize: 13, color: "#888" }}>
+          <div className={styles.emptyHint}>
             커스터마이저에서 첫 작품을 만들어보세요.
           </div>
         </div>
@@ -226,18 +219,13 @@ export default function WorksClient({
               w.signedPreviewUrl ||
               w.imageUrl ||
               (blobBase ? `${blobBase}/work-${w.id}.png` : "");
-            const checked = selectedIds.includes(w.id);
+            const checked = selectedIds.has(w.id);
             return (
-              <div
-                key={w.id}
-                className={styles.card}
-                style={{ position: "relative" }}
-              >
+              <div key={w.id} className={styles.card}>
                 <Link
                   href={`/customizer?workId=${w.id}`}
                   prefetch={false}
                   className={styles.thumbWrap}
-                  style={{ display: "block" }}
                 >
                   {imgSrc ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -247,25 +235,20 @@ export default function WorksClient({
                   )}
                 </Link>
                 <div className={styles.body}>
-                  <div
-                    className={styles.nameRow}
-                    style={{ display: "flex", alignItems: "center", gap: 8 }}
-                  >
+                  <div className={styles.nameRow}>
                     <input
                       type="checkbox"
                       checked={checked}
                       onChange={() => toggleSelect(w.id)}
                       onClick={(e) => e.stopPropagation()}
                       aria-label={checked ? "선택 해제" : "선택"}
-                      style={{ marginRight: 8, cursor: "pointer" }}
+                      className={styles.checkbox}
                     />
                     {/* 이름 표시 일단 숨김
                     <div className={styles.name}>{w.name}</div>
                     */}
                     {isLocal && (
-                      <span style={{ color: "#888", fontSize: 12 }}>
-                        (id: {w.id})
-                      </span>
+                      <span className={styles.localId}>(id: {w.id})</span>
                     )}
                   </div>
                   <div className={styles.badges}>

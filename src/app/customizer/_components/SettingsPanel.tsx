@@ -28,7 +28,6 @@ type Props = {
   setRadius: (n: number) => void;
   flowerColors: { petal: string; center: string };
   setFlowerColors: (c: { petal: string; center: string }) => void;
-  // flowersOptions removed (unused)
   saving: boolean;
   patchingImage: boolean;
   loadingExisting: boolean;

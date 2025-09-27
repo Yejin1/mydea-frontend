@@ -1,37 +1,73 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-function getBase() {
-  const raw = (process.env.NEXT_PUBLIC_API_BASE_URL || "").trim();
-  return raw.replace(/\/$/, "");
-}
-
-function backendHeaders(req: Request, access: string, refreshCookie?: string) {
-  const h = new Headers();
-  h.set("Authorization", `Bearer ${access}`);
-  const pass = ["accept", "accept-language", "user-agent"];
-  for (const k of pass) {
-    const v = req.headers.get(k);
-    if (v) h.set(k, v);
-  }
-  if (refreshCookie) h.set("cookie", `refreshToken=${refreshCookie}`);
-  return h;
-}
-
-type RefreshPayload = {
+// ---- Types --------------------------------------------------------------
+interface RefreshPayload {
   refreshToken?: string;
   accessToken?: string;
   serverToken?: string;
-  [key: string]: unknown;
-};
+  [k: string]: unknown;
+}
 
-function buildOutWithCookies(r: Response, payload?: RefreshPayload) {
-  const ct = r.headers.get("content-type") || "application/json";
-  const out = new NextResponse(r.body, {
-    status: r.status,
-    headers: { "content-type": ct },
+// ---- Helpers ------------------------------------------------------------
+const ALLOWED_RESP_HEADERS = new Set([
+  "content-type",
+  "cache-control",
+  "etag",
+  "vary",
+  "content-length",
+]);
+
+function getBase(): string | null {
+  const raw = (process.env.NEXT_PUBLIC_API_BASE_URL || "").trim();
+  if (!raw) return null;
+  return raw.replace(/\/$/, "");
+}
+
+function extractRefreshCookie(header: string | null): string | undefined {
+  if (!header) return undefined;
+  const m = header.match(/(?:^|;\s*)refreshToken=([^;]+)/);
+  return m ? decodeURIComponent(m[1]) : undefined;
+}
+
+function pickAccess(req: Request, cookieHeader: string) {
+  const fromAuth = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+  if (fromAuth) return fromAuth;
+  const m = cookieHeader.match(/(?:^|;\s*)serverToken=([^;]+)/);
+  return m ? decodeURIComponent(m[1]) : undefined;
+}
+
+function backendHeaders(req: Request, token: string, refresh?: string) {
+  const h = new Headers();
+  if (token) h.set("Authorization", `Bearer ${token}`);
+  const forward = ["accept", "accept-language", "user-agent"];
+  for (const k of forward) {
+    const v = req.headers.get(k);
+    if (v) h.set(k, v);
+  }
+  if (refresh) h.set("cookie", `refreshToken=${refresh}`);
+  return h;
+}
+
+async function safeJson(res: Response) {
+  try {
+    return (await res.json()) as unknown;
+  } catch {
+    return {};
+  }
+}
+
+function passThrough(r: Response) {
+  const headers = new Headers();
+  r.headers.forEach((v, k) => {
+    if (ALLOWED_RESP_HEADERS.has(k.toLowerCase())) headers.set(k, v);
   });
-  const newAccess = payload?.serverToken || payload?.accessToken;
-  if (payload?.refreshToken) {
+  return new NextResponse(r.body, { status: r.status, headers });
+}
+
+function attachCookies(out: NextResponse, payload?: RefreshPayload) {
+  if (!payload) return out;
+  const newAccess = payload.serverToken || payload.accessToken;
+  if (payload.refreshToken) {
     out.cookies.set("refreshToken", payload.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -52,81 +88,88 @@ function buildOutWithCookies(r: Response, payload?: RefreshPayload) {
   return out;
 }
 
-export async function GET(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+async function refresh(
+  base: string,
+  refreshCookie: string
+): Promise<RefreshPayload | null> {
+  const res = await fetch(`${base}/api/auth/refresh`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      cookie: `refreshToken=${refreshCookie}`,
+    },
+    body: JSON.stringify({}),
+    cache: "no-store",
+  });
+  if (!res.ok) return null;
+  const payload: RefreshPayload = {};
+  const parsed = await safeJson(res);
+  if (parsed && typeof parsed === "object") {
+    const obj = parsed as Record<string, unknown>;
+    const rt = obj["refreshToken"];
+    if (typeof rt === "string") payload.refreshToken = rt;
+    const at = obj["accessToken"];
+    if (typeof at === "string") payload.accessToken = at;
+    const st = obj["serverToken"];
+    if (typeof st === "string") payload.serverToken = st;
+    for (const [k, v] of Object.entries(obj))
+      if (!(k in payload)) payload[k] = v;
+  }
+  return payload;
+}
+
+function errorJson(status: number, message: string) {
+  return NextResponse.json({ error: message }, { status });
+}
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+async function handlePreset(req: NextRequest, params: { id: string }) {
   const base = getBase();
-  if (!base)
-    return NextResponse.json(
-      { error: "API base not configured" },
-      { status: 500 }
-    );
-  const { id } = await params;
+  if (!base) return errorJson(500, "API base not configured");
+  const { id } = params;
+  if (!id || !/^[0-9]+$/.test(id)) return errorJson(400, "invalid id");
 
   const cookieHeader = req.headers.get("cookie") || "";
-  const refreshCookie = (() => {
-    const m = cookieHeader.match(/(?:^|;\s*)refreshToken=([^;]+)/);
-    return m ? decodeURIComponent(m[1]) : undefined;
-  })();
-  const accessFromAuth = req.headers
-    .get("authorization")
-    ?.replace(/^Bearer\s+/i, "");
-  const accessFromCookie = (() => {
-    const m = cookieHeader.match(/(?:^|;\s*)serverToken=([^;]+)/);
-    return m ? decodeURIComponent(m[1]) : undefined;
-  })();
-  const token = accessFromAuth || accessFromCookie;
-
-  if (!token && !refreshCookie) {
-    // preset은 비로그인 사용자도 접근 가능하게 하려면 여길 permitAll로 바꾸고, 백엔드도 공개 허용 필요
-    return new NextResponse("Unauthorized", { status: 401 });
-  }
+  const refreshCookie = extractRefreshCookie(cookieHeader);
+  const token = pickAccess(req, cookieHeader);
+  // 비로그인 상태에서도 preset 조회를 허용하기 위해 Unauthorized 즉시 반환을 제거
+  // (백엔드가 공개 preset 조회를 허용한다고 가정)
+  // token/refresh 둘 다 없으면 Authorization 헤더 없이 시도 -> 401 이면 그대로 전달
 
   const target = `${base}/api/works/${id}/preset`;
-  let r = await fetch(target, {
-    cache: "no-store",
-    headers: backendHeaders(req, token || "", refreshCookie),
-  });
-
-  if (r.status !== 401 && token) return r;
-
-  if (refreshCookie) {
-    const rr = await fetch(`${base}/api/auth/refresh`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        cookie: `refreshToken=${refreshCookie}`,
-      },
-      body: JSON.stringify({}),
+  let upstream: Response;
+  try {
+    upstream = await fetch(target, {
       cache: "no-store",
+      headers: backendHeaders(req, token || "", refreshCookie),
     });
-    if (rr.ok) {
-      // Parse refresh payload safely
-      const payload: RefreshPayload = {};
-      try {
-        const parsed: unknown = (await rr.json()) as unknown;
-        if (parsed && typeof parsed === "object") {
-          const obj = parsed as Record<string, unknown>;
-          const rt = obj["refreshToken"];
-          const at = obj["accessToken"];
-          const st = obj["serverToken"];
-          if (typeof rt === "string") payload.refreshToken = rt;
-          if (typeof at === "string") payload.accessToken = at;
-          if (typeof st === "string") payload.serverToken = st;
-          for (const [k, v] of Object.entries(obj))
-            if (!(k in payload)) payload[k] = v;
-        }
-      } catch {}
-      const newAccess = payload?.serverToken || payload?.accessToken;
-      if (newAccess) {
-        r = await fetch(target, {
-          cache: "no-store",
-          headers: backendHeaders(req, newAccess, refreshCookie),
-        });
-        return buildOutWithCookies(r, payload);
-      }
-    }
+  } catch {
+    return errorJson(502, "upstream fetch failed");
   }
-  return r;
+  if (upstream.status !== 401 || !refreshCookie) return passThrough(upstream);
+
+  const payload = await refresh(base, refreshCookie);
+  const newAccess = payload?.serverToken || payload?.accessToken;
+  if (!newAccess) return passThrough(upstream);
+
+  try {
+    upstream = await fetch(target, {
+      cache: "no-store",
+      headers: backendHeaders(req, newAccess, refreshCookie),
+    });
+  } catch {
+    return errorJson(502, "upstream fetch after refresh failed");
+  }
+  return attachCookies(passThrough(upstream), payload || undefined);
+}
+
+// NOTE: ctx 타입을 넓혀 Next.js 15 타입 생성 충돌을 우회 (TODO: 추후 공식 타입 안정화 후 좁히기)
+export async function GET(req: NextRequest, ctx: unknown) {
+  const params =
+    ctx && typeof ctx === "object" && "params" in ctx
+      ? (ctx as { params: { id?: unknown } }).params
+      : { id: undefined };
+  return handlePreset(req, { id: String(params.id ?? "") });
 }

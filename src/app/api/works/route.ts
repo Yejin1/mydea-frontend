@@ -4,39 +4,58 @@ import { NextRequest, NextResponse } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function getBase() {
+// 참고: 중복되던 리프레시 / 헤더 전달 로직을 제거하기 위해 리팩터링된 파일입니다.
+// TODO (향후): `api/works/[id]/route.ts` 와 통합하거나 cart `_proxyUtil.ts` 와 공통 유틸로 병합 검토.
+
+const DEBUG = process.env.NODE_ENV !== "production";
+
+interface RefreshPayload {
+  refreshToken?: string;
+  accessToken?: string;
+  serverToken?: string;
+  [k: string]: unknown;
+}
+
+function getBase(): string | null {
   const raw = (process.env.NEXT_PUBLIC_API_BASE_URL || "").trim();
+  if (!raw) return null;
   return raw.replace(/\/$/, "");
 }
 
-function backendHeaders(
-  req: NextRequest,
-  access: string,
-  extra?: Record<string, string>
-) {
+// 여러 이름으로 존재할 수 있는 액세스(서버) 토큰 쿠키 중 우선순위에 따라 선택
+function pickAccessToken(req: NextRequest) {
+  return (
+    req.cookies.get("serverToken")?.value ||
+    req.cookies.get("access_token")?.value ||
+    req.cookies.get("accessToken")?.value ||
+    null
+  );
+}
+
+// refreshToken 쿠키 추출
+function getRefreshCookie(req: NextRequest) {
+  return req.cookies.get("refreshToken")?.value;
+}
+
+// 백엔드로 전달할 헤더 구성 (선별된 헤더 + Authorization + refreshToken 전달)
+function buildHeaders(req: NextRequest, token: string, refresh?: string) {
   const h = new Headers();
-
-  // 인증
-  h.set("Authorization", `Bearer ${access}`);
-
-  // 원 요청의 의미 있는 헤더만 선별적으로 전달
-  const passThroughKeys = [
+  if (token) h.set("Authorization", `Bearer ${token}`);
+  const forward = new Set([
     "content-type",
     "accept",
     "accept-language",
     "user-agent",
-  ];
-  for (const k of passThroughKeys) {
-    const v = req.headers.get(k);
-    if (v) h.set(k, v);
-  }
-
-  if (extra) for (const [k, v] of Object.entries(extra)) h.set(k, v);
+  ]);
+  req.headers.forEach((v, k) => {
+    if (forward.has(k.toLowerCase())) h.set(k, v);
+  });
+  if (refresh) h.set("cookie", `refreshToken=${refresh}`);
   return h;
 }
 
+// 업스트림 응답 헤더 중 안전하고 의미 있는 것만 선별 전달
 function forwardHeaders(up: Response) {
-  // 보안상 set-cookie는 차단, 유용한 응답 헤더만 전달
   const allowed = new Set([
     "content-type",
     "cache-control",
@@ -47,255 +66,174 @@ function forwardHeaders(up: Response) {
   ]);
   const out = new Headers();
   up.headers.forEach((v, k) => {
-    const key = k.toLowerCase();
-    if (allowed.has(key)) out.set(key, v);
+    if (allowed.has(k.toLowerCase())) out.set(k, v);
   });
   return out;
 }
 
-async function forward(upstream: Response) {
-  if (upstream.status === 204 || upstream.status === 304) {
+// 업스트림 응답을 본문 스트리밍 그대로 전달 (204/304 예외 처리)
+function passThrough(up: Response) {
+  if (up.status === 204 || up.status === 304) {
     return new NextResponse(null, {
-      status: upstream.status,
-      headers: forwardHeaders(upstream),
+      status: up.status,
+      headers: forwardHeaders(up),
     });
   }
-  // 스트리밍 그대로 전달 (텍스트로 변환하지 않음)
-  return new NextResponse(upstream.body, {
-    status: upstream.status,
-    headers: forwardHeaders(upstream),
+  return new NextResponse(up.body, {
+    status: up.status,
+    headers: forwardHeaders(up),
   });
 }
 
-type RefreshPayload = {
-  refreshToken?: string;
-  accessToken?: string;
-  serverToken?: string;
-  [key: string]: unknown;
-};
-
-// GET /api/works?...
-export async function GET(req: NextRequest) {
-  const base = getBase();
-  // 로그인 시 저장되는 서버측 토큰 이름과 정합성 유지
-  const access =
-    req.cookies.get("serverToken")?.value ||
-    req.cookies.get("access_token")?.value ||
-    req.cookies.get("accessToken")?.value;
-  // 필요한 경우에만 refreshToken 쿠키만 선별 전달 (백엔드가 쿠키 기반 리프레시를 지원할 때)
-  const refreshCookie = req.cookies.get("refreshToken")?.value;
-
-  if (!base)
-    return NextResponse.json(
-      { error: "API base not configured" },
-      { status: 500 }
-    );
-  if (!access) {
-    if (process.env.NODE_ENV !== "production") {
-      console.warn("[api/works] 401: no access cookie", {
-        hasServerToken: !!req.cookies.get("serverToken"),
-        hasAccessToken: !!req.cookies.get("accessToken"),
-        hasAccess_Underscore: !!req.cookies.get("access_token"),
-      });
+// refresh 시도 (성공 시 새 토큰 및 페이로드 반환, 실패 시 null)
+async function tryRefresh(
+  base: string,
+  refreshCookie?: string
+): Promise<{
+  token: string | null;
+  payload: RefreshPayload | null;
+}> {
+  if (!refreshCookie) return { token: null, payload: null };
+  const r = await fetch(`${base}/api/auth/refresh`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      cookie: `refreshToken=${refreshCookie}`,
+    },
+    body: JSON.stringify({}),
+    cache: "no-store",
+  });
+  if (!r.ok) return { token: null, payload: null };
+  const payload: RefreshPayload = {};
+  try {
+    const parsed: unknown = await r.json();
+    if (parsed && typeof parsed === "object") {
+      const obj = parsed as Record<string, unknown>;
+      const rt = obj["refreshToken"];
+      if (typeof rt === "string") payload.refreshToken = rt;
+      const at = obj["accessToken"];
+      if (typeof at === "string") payload.accessToken = at;
+      const st = obj["serverToken"];
+      if (typeof st === "string") payload.serverToken = st;
+      for (const [k, v] of Object.entries(obj))
+        if (!(k in payload)) payload[k] = v;
     }
-    return new NextResponse("Unauthorized", { status: 401 });
+  } catch {}
+  const token = payload.serverToken || payload.accessToken || null;
+  return { token, payload: token ? payload : null };
+}
+
+// 새 refreshToken / serverToken 을 httpOnly 쿠키로 갱신
+function applyRefreshedCookies(
+  out: NextResponse,
+  payload: RefreshPayload | null,
+  token: string | null
+) {
+  if (payload?.refreshToken) {
+    out.cookies.set("refreshToken", payload.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60,
+      path: "/",
+    });
+  }
+  if (token) {
+    out.cookies.set("serverToken", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 24 * 60 * 60,
+      path: "/",
+    });
+  }
+}
+
+// 표준 에러 JSON 응답 형태
+function errorJson(status: number, message: string) {
+  return NextResponse.json({ error: message }, { status });
+}
+
+// 공통 처리: 업스트림 호출 → 401 일회성 refresh 재시도 → 쿠키 갱신 → 응답 패스스루
+async function perform(req: NextRequest, method: "GET" | "POST" | "DELETE") {
+  const base = getBase();
+  if (!base) return errorJson(500, "API base not configured");
+  const token = pickAccessToken(req);
+  if (!token) return errorJson(401, "Unauthorized");
+  const refresh = getRefreshCookie(req);
+  const url = new URL(req.url);
+  const target = `${base}/api/works${url.search}`;
+
+  let body: ArrayBuffer | undefined;
+  if (method !== "GET") {
+    const buf = await req.arrayBuffer();
+    body = buf.byteLength ? buf : undefined;
   }
 
-  try {
-    const url = new URL(req.url);
-    const target = `${base}/api/works${url.search}`;
-    if (process.env.NODE_ENV !== "production") {
-      console.log("[api/works] GET → backend", {
-        target,
-        tokenLen: access.length,
-        tokenPreview: access.slice(0, 10) + "…",
-      });
-    }
+  if (DEBUG) {
+    console.log(`[api/works] ${method} → backend`, { target });
+  }
 
-    let r = await fetch(target, {
-      method: "GET",
-      cache: "no-store",
-      headers: (() => {
-        const h = backendHeaders(req, access);
-        if (refreshCookie) h.set("cookie", `refreshToken=${refreshCookie}`);
-        return h;
-      })(),
-      signal: req.signal,
-    });
+  let res = await fetch(target, {
+    method,
+    cache: "no-store",
+    headers: buildHeaders(req, token, refresh),
+    body,
+    signal: req.signal,
+    ...(method !== "GET" ? { duplex: "half" } : {}),
+  });
 
-    // 401이면 서버에서 한 번만 리프레시 시도 후 재시도
-    if (r.status === 401) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[api/works] backend 401 — trying refresh");
-      }
-      const refreshRes = await fetch(`${base}/api/auth/refresh`, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          // 리프레시에 필요한 쿠키만 전달
-          ...(refreshCookie ? { cookie: `refreshToken=${refreshCookie}` } : {}),
-        },
-        body: JSON.stringify({}),
+  if (res.status === 401) {
+    if (DEBUG) console.warn(`[api/works] ${method} 401 → attempting refresh`);
+    const { token: newToken, payload } = await tryRefresh(base, refresh);
+    if (newToken) {
+      res = await fetch(target, {
+        method,
         cache: "no-store",
+        headers: buildHeaders(req, newToken, refresh),
+        body,
         signal: req.signal,
+        ...(method !== "GET" ? { duplex: "half" } : {}),
       });
-
-      if (refreshRes.ok) {
-        const payload: RefreshPayload = {};
-        try {
-          const parsed: unknown = (await refreshRes.json()) as unknown;
-          if (parsed && typeof parsed === "object") {
-            const obj = parsed as Record<string, unknown>;
-            const rt = obj["refreshToken"];
-            const at = obj["accessToken"];
-            const st = obj["serverToken"];
-            if (typeof rt === "string") payload.refreshToken = rt;
-            if (typeof at === "string") payload.accessToken = at;
-            if (typeof st === "string") payload.serverToken = st;
-            for (const [k, v] of Object.entries(obj))
-              if (!(k in payload)) payload[k] = v;
-          }
-        } catch {}
-        const newAccess = payload?.serverToken || payload?.accessToken;
-        if (newAccess) {
-          // 새 토큰으로 재시도
-          r = await fetch(target, {
-            method: "GET",
-            cache: "no-store",
-            headers: (() => {
-              const h = backendHeaders(req, newAccess);
-              if (refreshCookie)
-                h.set("cookie", `refreshToken=${refreshCookie}`);
-              return h;
-            })(),
-            signal: req.signal,
-          });
-
-          // 재시도 결과를 클라이언트에 전달하면서, 우리 도메인의 httpOnly 쿠키도 갱신
-          const headersOut = forwardHeaders(r);
-          const out = new NextResponse(r.body, {
-            status: r.status,
-            headers: headersOut,
-          });
-          // 쿠키 갱신: refreshToken, serverToken
-          if (payload?.refreshToken) {
-            out.cookies.set("refreshToken", payload.refreshToken, {
-              httpOnly: true,
-              secure: process.env.NODE_ENV === "production",
-              sameSite: "lax",
-              maxAge: 7 * 24 * 60 * 60,
-              path: "/",
-            });
-          }
-          if (newAccess) {
-            out.cookies.set("serverToken", newAccess, {
-              httpOnly: true,
-              secure: process.env.NODE_ENV === "production",
-              sameSite: "lax",
-              maxAge: 24 * 60 * 60,
-              path: "/",
-            });
-          }
-
-          if (process.env.NODE_ENV !== "production") {
-            console.log("[api/works] GET ← backend (after refresh)", {
-              status: r.status,
-              contentType: r.headers.get("content-type"),
-            });
-          }
-          return out;
-        }
-      }
+      const out = passThrough(res);
+      applyRefreshedCookies(out, payload, newToken);
+      if (DEBUG)
+        console.log(`[api/works] ${method} ← backend (after refresh)`, {
+          status: res.status,
+        });
+      return out;
     }
-    if (process.env.NODE_ENV !== "production") {
-      console.log("[api/works] GET ← backend", {
-        status: r.status,
-        contentType: r.headers.get("content-type"),
-      });
-    }
-    return forward(r);
+  }
+
+  if (DEBUG) {
+    console.log(`[api/works] ${method} ← backend`, { status: res.status });
+  }
+  return passThrough(res);
+}
+
+// GET /api/works
+export async function GET(req: NextRequest) {
+  try {
+    return await perform(req, "GET");
   } catch {
-    return NextResponse.json(
-      { error: "Upstream fetch failed" },
-      { status: 502 }
-    );
+    return errorJson(502, "Upstream fetch failed");
   }
 }
 
 // POST /api/works
 export async function POST(req: NextRequest) {
-  const base = getBase();
-  const access =
-    req.cookies.get("serverToken")?.value ||
-    req.cookies.get("access_token")?.value ||
-    req.cookies.get("accessToken")?.value;
-
-  if (!base)
-    return NextResponse.json(
-      { error: "API base not configured" },
-      { status: 500 }
-    );
-  if (!access) return new NextResponse("Unauthorized", { status: 401 });
-
   try {
-    const body = await req.arrayBuffer(); // 바이너리/JSON 모두 안전
-    const r = await fetch(`${base}/api/works`, {
-      method: "POST",
-      cache: "no-store",
-      headers: backendHeaders(req, access),
-      body: body.byteLength ? body : undefined,
-      signal: req.signal,
-      // Node(undici)에서 바디 스트리밍 옵션이 필요할 경우:
-      // @ts-expect-error — Node fetch 확장 옵션
-      duplex: "half",
-    });
-
-    if (process.env.NODE_ENV !== "production") {
-      console.log("[api/works] POST → backend", {
-        status: r.status,
-        contentType: r.headers.get("content-type"),
-      });
-    }
-    return forward(r);
+    return await perform(req, "POST");
   } catch {
-    return NextResponse.json(
-      { error: "Upstream fetch failed" },
-      { status: 502 }
-    );
+    return errorJson(502, "Upstream fetch failed");
   }
 }
 
 // DELETE /api/works
 export async function DELETE(req: NextRequest) {
-  const base = getBase();
-  const access =
-    req.cookies.get("serverToken")?.value ||
-    req.cookies.get("access_token")?.value ||
-    req.cookies.get("accessToken")?.value;
-
-  if (!base)
-    return NextResponse.json(
-      { error: "API base not configured" },
-      { status: 500 }
-    );
-  if (!access) return new NextResponse("Unauthorized", { status: 401 });
-
   try {
-    const body = await req.arrayBuffer();
-    const r = await fetch(`${base}/api/works`, {
-      method: "DELETE",
-      cache: "no-store",
-      headers: backendHeaders(req, access),
-      body: body.byteLength ? body : undefined,
-      signal: req.signal,
-      // @ts-expect-error — Node fetch 확장 옵션
-      duplex: "half",
-    });
-    return forward(r);
+    return await perform(req, "DELETE");
   } catch {
-    return NextResponse.json(
-      { error: "Upstream fetch failed" },
-      { status: 502 }
-    );
+    return errorJson(502, "Upstream fetch failed");
   }
 }

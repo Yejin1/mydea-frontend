@@ -4,7 +4,6 @@ type RefreshResponse = {
   refreshToken?: string;
   accessToken?: string;
   serverToken?: string;
-  // allow any other fields while keeping strong typing for the ones we use
   [key: string]: unknown;
 };
 
@@ -21,7 +20,7 @@ export async function POST(req: Request) {
   const base = getBase();
   if (!base)
     return NextResponse.json(
-      { error: "API base not configured" },
+      { error: "API 기본 URL 이 설정되지 않았습니다" },
       { status: 500 }
     );
 
@@ -41,14 +40,14 @@ export async function POST(req: Request) {
     const text = await r.text();
 
     if (!r.ok) {
-      // 실패 시 그대로 바디/코드를 전달
+      // 실패 시 백엔드 응답 바디와 상태코드를 그대로 전달
       return new NextResponse(text, {
         status: r.status,
         headers: { "content-type": contentType },
       });
     }
 
-    // Parse response body safely without using 'any'
+    // 응답 바디를 any 없이 안전하게 파싱
     const data: RefreshResponse = {};
     try {
       const parsed: unknown = JSON.parse(text);
@@ -59,7 +58,7 @@ export async function POST(req: Request) {
         if (typeof rt === "string") data.refreshToken = rt;
         if (typeof at === "string") data.accessToken = at;
         if (typeof st === "string") data.serverToken = st;
-        // copy through any other keys for transparency
+        // 투명성을 위해 쓰지 않는 키도 그대로 복사
         for (const [k, v] of Object.entries(parsed)) {
           if (!(k in data)) data[k] = v;
         }
@@ -71,7 +70,7 @@ export async function POST(req: Request) {
       headers: { "content-type": "application/json" },
     });
 
-    // 백엔드가 토큰을 바디로 내려주면 우리 도메인에 httpOnly 쿠키로 갱신
+    // 백엔드가 토큰을 바디로 내려주면 도메인에 httpOnly 쿠키로 갱신
     if (data.refreshToken) {
       response.cookies.set("refreshToken", data.refreshToken, {
         httpOnly: true,
@@ -106,6 +105,6 @@ export async function POST(req: Request) {
     if (process.env.NODE_ENV !== "production") {
       console.error("[auth.refresh] error", e);
     }
-    return NextResponse.json({ error: "refresh failed" }, { status: 500 });
+    return NextResponse.json({ error: "토큰 갱신 실패" }, { status: 500 });
   }
 }
