@@ -23,9 +23,11 @@ type Props = {
   sizeOption: number[];
   countOption: number[];
   radiusOption: number[];
+  flowersOptions: number[];
   setSize: (s: string) => void;
   setCount: (n: number) => void;
   setRadius: (n: number) => void;
+  setFlowers: (n: number) => void;
   flowerColors: { petal: string; center: string };
   setFlowerColors: (c: { petal: string; center: string }) => void;
   saving: boolean;
@@ -60,9 +62,11 @@ export default function SettingsPanel(p: Props) {
     sizeOption,
     countOption,
     radiusOption,
+    flowersOptions,
     setSize,
     setCount,
     setRadius,
+    setFlowers,
     flowerColors,
     setFlowerColors,
     saving,
@@ -254,6 +258,7 @@ export default function SettingsPanel(p: Props) {
               setSize(e.target.value);
               setCount(countOption[idx]);
               setRadius(radiusOption[idx]);
+              setFlowers(flowersOptions[idx]);
             }}
             className={styles.sizeSelect}
           >
