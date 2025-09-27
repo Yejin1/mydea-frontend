@@ -119,7 +119,7 @@ export default function CartClient() {
     // TODO (#3): PATCH /api/cart/items 구현 후 응답 스펙 확정되면 성공 시 서버 total 갱신 여부 논의
     setUpdatingIds((prev) => new Set(prev).add(item.cartItemId));
     try {
-      const res = await fetch("/api/cart/items", {
+      const res = await fetch(`/api/cart/items/${item.cartItemId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
