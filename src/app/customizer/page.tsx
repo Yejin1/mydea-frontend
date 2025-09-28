@@ -615,6 +615,42 @@ function CustomizerContent() {
     if (saving) return;
     try {
       const workId = await ensureWorkCreated();
+      // 썸네일url 없으면 PATCH 후 기다리도록
+      let thumbUrl = imageUploadedUrl;
+      if (!thumbUrl) {
+        try {
+          setPatchingImage(true);
+          const newUrl = await captureAndUploadScreenshot(workId);
+          if (newUrl) {
+            // 서버에 preview-url 반영
+            const patchRes = await apiFetch(
+              `/api/works/${workId}/preview-url`,
+              {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ previewUrl: newUrl }),
+              }
+            );
+            if (patchRes.ok) {
+              thumbUrl = newUrl;
+              setImageUploadedUrl(newUrl);
+            } else {
+              // 실패해도 cart 진행은 허용
+              console.warn(
+                "[addToCart] preview-url PATCH 실패",
+                patchRes.status
+              );
+            }
+          }
+        } catch (thumbErr) {
+          console.warn(
+            "[addToCart] 썸네일 생성/업로드 실패 (무시 후 진행)",
+            thumbErr
+          );
+        } finally {
+          setPatchingImage(false);
+        }
+      }
       const optionHash = buildCartOptionHash({
         accessory,
         design,
@@ -634,7 +670,7 @@ function CustomizerContent() {
       const payload: CartPayload = {
         workId,
         name: generateWorkName(design, accessory),
-        thumbUrl: imageUploadedUrl || null,
+        thumbUrl: thumbUrl || null,
         unitPrice,
         quantity: 1,
         optionHash,
