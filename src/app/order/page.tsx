@@ -9,7 +9,7 @@ import {
 } from "@/lib/customizerMath";
 import styles from "./order.module.css";
 
-// PayPal 관련 타입 (간단)
+// PayPal 관련 타입
 interface PaypalButtonsConfig {
   createOrder: () => Promise<string> | string;
   onApprove: (data: OnApproveData) => Promise<void> | void;
@@ -19,8 +19,6 @@ interface OnApproveData {
   orderID: string;
   payerID?: string;
 }
-
-// (Toss 결제 연동 제거됨) 결제 위젯 관련 로직 삭제
 
 interface WorkSummaryResponse {
   id: number;
@@ -70,7 +68,6 @@ function OrderContentInner() {
     address2: "",
     note: "",
   });
-  // (결제 위젯 제거됨)
   const [directMode, setDirectMode] = useState(false); // true이면 /api/orders/direct 바로주문 모드 사용
 
   // 바로 주문(single item) payload 구성
@@ -163,8 +160,6 @@ function OrderContentInner() {
       cancelled = true;
     };
   }, [workId, sizeMmParam]);
-
-  // Toss 위젯 초기화 useEffect 제거됨
 
   async function createOrder() {
     if (creating || orderId) return;
@@ -334,11 +329,6 @@ function OrderContentInner() {
   return (
     <div className={styles.container}>
       <h1 className={styles.title}>주문 / 결제</h1>
-      {directMode && (
-        <div className={styles.directModeBadge}>
-          장바구니 없이 바로 주문 모드 (virtual cart)
-        </div>
-      )}
       <div className={styles.layoutRow}>
         {work.previewUrl && (
           <div className={styles.previewThumbWrapper}>
