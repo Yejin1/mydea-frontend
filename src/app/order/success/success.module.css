@@ -1,0 +1,60 @@
+/* 주문 성공 페이지 스타일 모듈 */
+
+.container {
+  padding: 40px;
+}
+
+.error {
+  color: red;
+}
+
+.status {
+  color: #555;
+}
+
+.statusPaid {
+  color: green;
+  font-weight: 600;
+}
+
+.itemsList {
+  list-style: none;
+  padding: 0;
+  margin-top: 24px;
+}
+
+.item {
+  padding: 6px 0;
+  border-bottom: 1px solid #eee;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.itemAmount {
+  float: right;
+  font-weight: 500;
+}
+
+.links {
+  margin-top: 32px;
+  display: flex;
+  gap: 12px;
+}
+
+.link {
+  color: #3182f6;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.loadingText {
+  font-size: 14px;
+}
+
+.emptyText {
+  font-size: 14px;
+}

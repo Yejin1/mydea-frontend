@@ -165,7 +165,7 @@ async function handlePreset(req: NextRequest, params: { id: string }) {
   return attachCookies(passThrough(upstream), payload || undefined);
 }
 
-// NOTE: ctx 타입을 넓혀 Next.js 15 타입 생성 충돌을 우회 (TODO: 추후 공식 타입 안정화 후 좁히기)
+// ctx 타입을 넓혀 Next.js 15 타입 생성 충돌을 우회 (TODO: 추후 공식 타입 안정화 후 좁히기)
 export async function GET(req: NextRequest, ctx: unknown) {
   const params =
     ctx && typeof ctx === "object" && "params" in ctx

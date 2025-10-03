@@ -9,7 +9,7 @@ import {
   Suspense,
   useCallback,
 } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import styles from "./customizer.module.css";
 import {
   BEAD_OUTER,
@@ -131,6 +131,7 @@ function deriveCameraDistance(sizeStr: string): number {
 
 function CustomizerContent() {
   const search = useSearchParams();
+  const router = useRouter();
   const initialWorkId = search.get("workId");
   const isPresetMode = (search.get("preset") || "").toLowerCase() === "true";
   const [countOption, setCountOption] = useState<number[]>([]);
@@ -391,7 +392,7 @@ function CustomizerContent() {
     setSize(String(sizeOption[applyIdx]));
     setCount(countOption[applyIdx]);
     setRadius(radiusOption[applyIdx]);
-  }, [sizeOption, countOption, radiusOption, size]);
+  }, [sizeOption, countOption, radiusOption, flowersOptions, size]);
 
   // 사이즈 옵션이 비었을 때 경고 & 선택값 초기화
   useEffect(() => {
@@ -419,7 +420,7 @@ function CustomizerContent() {
       setRadius(radiusOption[0]);
       setFlowers(flowersOptions[0]);
     }
-  }, [sizeOption, size, countOption, radiusOption]);
+  }, [sizeOption, size, countOption, radiusOption, flowersOptions]);
 
   // 색상 변경/추가/삭제 핸들러
   const handleColorChange = (idx: number, value: string) => {
@@ -707,6 +708,19 @@ function CustomizerContent() {
     apiFetch,
   ]);
 
+  // 주문 페이지 이동 (work 생성 보장 후 이동)
+  const goToOrder = useCallback(async () => {
+    if (saving) return;
+    try {
+      const workId = await ensureWorkCreated();
+      // size(mm) 값도 함께 전달하여 주문 페이지에서 가격 계산 용이하게
+      router.push(`/order?workId=${workId}&size=${encodeURIComponent(size)}`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "주문 페이지 이동 실패";
+      alert(msg);
+    }
+  }, [saving, ensureWorkCreated, router, size]);
+
   return (
     <div className={styles.pageLayout}>
       {/* 미리보기 */}
@@ -752,7 +766,7 @@ function CustomizerContent() {
         onSave={saveWork}
         onOrder={() => {
           if (saving) return;
-          alert("주문 기능은 준비중입니다.");
+          void goToOrder();
         }}
         onAddToCart={addToCart}
         deleting={deleting}
