@@ -301,21 +301,34 @@ function OrderContentInner() {
       renderButtons();
       return;
     }
-    const clientId = process.env.PAYPAL_CLIENT_ID;
-    console.log("PayPal Client ID:", clientId);
-    if (!clientId) return; // 환경 변수 없으면 스킵
-    const script = document.createElement("script");
-    script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&components=buttons&currency=USD`;
-    script.async = true;
-    script.onload = renderButtons;
-    document.body.appendChild(script);
-    return () => {
-      // PayPal SDK는 전역 주입이라 제거는 선택사항 (여기선 noop)
+    const loadSdk = async () => {
+      let clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
+      if (!clientId) {
+        try {
+          const r = await fetch("/api/config/paypal-client-id", {
+            cache: "no-store",
+          });
+          if (r.ok) {
+            const j: { clientId?: string | null } = await r.json();
+            if (j?.clientId) clientId = j.clientId;
+          }
+        } catch {
+          // 무시하고 종료
+        }
+      }
+      if (!clientId) {
+        console.warn("PayPal Client ID 미설정: SDK 로드 생략");
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&components=buttons&currency=USD`;
+      script.async = true;
+      script.onload = renderButtons;
+      document.body.appendChild(script);
     };
+    loadSdk();
+    return () => {};
   }, [orderId, previewTotal, router]);
-
-  // PayPal 관련 타입 선언
-  // (타입 선언은 파일 상단에 배치됨)
 
   // Direct 모드일 때 프론트 추정 금액 계산 (work/size 기반)
   useEffect(() => {
