@@ -53,11 +53,11 @@ function OrderContentInner() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [work, setWork] = useState<WorkSummaryResponse | null>(null);
-  const [previewTotal, setPreviewTotal] = useState<number>(0);
+  // 미리보기 총액: -1이면 아직 계산 전
+  const [previewTotal, setPreviewTotal] = useState<number>(-1);
   const [cartId, setCartId] = useState<number | null>(null);
-  const [orderId, setOrderId] = useState<number | null>(null); // 내부 주문 ID
+  const [orderId, setOrderId] = useState<number | null>(null); // 주문 ID
   const [orderNo, setOrderNo] = useState<string>(""); // 표시용 주문번호
-  // PayPal order id는 현재 UI에서 사용하지 않아 상태 저장 생략
   const [capturing, setCapturing] = useState(false);
   const [creating, setCreating] = useState(false);
   const [recipient, setRecipient] = useState({
@@ -77,7 +77,6 @@ function OrderContentInner() {
     const sizeMm = sizeMmParam ? Number(sizeMmParam) : 0;
     const option: Record<string, unknown> = {};
     if (sizeMm > 0) option.sizeMm = sizeMm;
-    // 서버 검증을 통과하도록 단가는 프론트에서 추정 계산 (정확한 값은 서버가 재검증)
     let unitPrice = 0;
     try {
       const acc = (work.workType as Accessory) || "ring";
@@ -127,7 +126,7 @@ function OrderContentInner() {
         }
         if (!cancelled && resolvedCartId) setCartId(resolvedCartId);
 
-        // 2) 주문 미리보기: cartId 있으면 기존 preview 호출, 없으면 direct 모드로 전환 (총액은 0 → 주문 생성 응답으로 업데이트)
+        // 2) 주문 미리보기: cartId 있으면 기존 preview 호출, 없으면 direct 모드로 전환 (direct는 프론트에서 추정 금액 계산)
         if (resolvedCartId) {
           const previewRes = await fetch("/api/orders/preview", {
             method: "POST",
@@ -143,12 +142,8 @@ function OrderContentInner() {
             throw new Error(t || "미리보기 실패");
           }
         } else {
-          // Direct 모드 활성화: 초기 금액 0 (서버 주문 생성 후 total 반영)
-          if (!cancelled) {
-            setDirectMode(true);
-            // (추후) 프론트 단가 계산 결과를 선반영하려면 여기에서 setPreviewTotal 호출 가능
-            setPreviewTotal(0);
-          }
+          // Direct 모드 활성화: 프론트에서 단가 계산하여 미리보기 표시
+          if (!cancelled) setDirectMode(true);
         }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "로드 실패");
@@ -167,7 +162,7 @@ function OrderContentInner() {
       setCreating(true);
       let res: Response;
       if (directMode) {
-        // 바로 주문 생성 (virtual cart)
+        // 바로 주문 생성
         const items = buildDirectItems();
         res = await fetch("/api/orders/direct", {
           method: "POST",
@@ -258,7 +253,7 @@ function OrderContentInner() {
               const params = new URLSearchParams({
                 ref: `MYDEA-${orderId}`,
                 currency: "USD",
-                amount: String(previewTotal || 0),
+                amount: String(Math.max(0, previewTotal)),
               });
               const res = await fetch(`/api/paypal/orders?${params}`, {
                 method: "POST",
@@ -307,6 +302,7 @@ function OrderContentInner() {
       return;
     }
     const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
+    console.log("PayPal Client ID:", clientId);
     if (!clientId) return; // 환경 변수 없으면 스킵
     const script = document.createElement("script");
     script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&components=buttons&currency=USD`;
@@ -320,6 +316,20 @@ function OrderContentInner() {
 
   // PayPal 관련 타입 선언
   // (타입 선언은 파일 상단에 배치됨)
+
+  // Direct 모드일 때 프론트 추정 금액 계산 (work/size 기반)
+  useEffect(() => {
+    if (!directMode || !work) return;
+    try {
+      const sizeMm = sizeMmParam ? Number(sizeMmParam) : 0;
+      const acc = (work.workType as Accessory) || "ring";
+      const design = (work.designType as Design) || "basic";
+      const unit = getAccessoryTotalPrice(acc, sizeMm > 0 ? sizeMm : 0, design);
+      setPreviewTotal(unit);
+    } catch {
+      setPreviewTotal(-1);
+    }
+  }, [directMode, work, sizeMmParam]);
 
   if (!workId) return <div>workId 파라미터 필요</div>;
   if (loading) return <div>주문 정보 불러오는 중...</div>;
@@ -357,12 +367,7 @@ function OrderContentInner() {
           </p>
           <p className={styles.infoP}>
             <strong>주문 예상 총액:</strong>{" "}
-            {previewTotal
-              ? previewTotal.toLocaleString()
-              : directMode
-              ? "(생성 후 반영)"
-              : "--"}
-            원
+            {previewTotal >= 0 ? previewTotal.toLocaleString() : "--"}원
             {cartId && !directMode && (
               <span className={styles.amountNote}>(cartId: {cartId})</span>
             )}
