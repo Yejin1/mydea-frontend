@@ -301,7 +301,7 @@ function OrderContentInner() {
       renderButtons();
       return;
     }
-    const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
+    const clientId = process.env.PAYPAL_CLIENT_ID;
     console.log("PayPal Client ID:", clientId);
     if (!clientId) return; // 환경 변수 없으면 스킵
     const script = document.createElement("script");
