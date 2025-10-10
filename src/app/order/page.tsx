@@ -446,12 +446,12 @@ function OrderContentInner() {
         }`}
       >
         {orderId
-          ? "주문 생성 완료"
+          ? "결제 진행중"
           : creating
           ? "주문 생성중..."
           : directMode
-          ? "바로 주문 생성"
-          : "주문 생성"}
+          ? "결제 진행하기"
+          : "결제 진행"}
       </button>
       <div style={{ marginTop: 8 }}>
         {orderId ? (

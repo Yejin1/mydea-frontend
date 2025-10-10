@@ -1,0 +1,95 @@
+.container {
+  max-width: 820px;
+  margin: 40px auto;
+  padding: 16px;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 16px;
+}
+
+.error {
+  color: #d32f2f;
+  margin-bottom: 12px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card {
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fff;
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.orderMeta {
+  font-size: 13px;
+  color: #666;
+}
+
+.amount {
+  font-weight: 600;
+}
+
+.status {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #eee;
+  color: #333;
+}
+
+.statusPaid {
+  background: #e7f7ee;
+  color: #13753d;
+}
+
+.items {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #444;
+}
+
+.pagination {
+  margin-top: 16px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.pageBtn {
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background: #fafafa;
+  cursor: pointer;
+}
+
+.pageBtn:disabled {
+  color: #999;
+  background: #eee;
+  cursor: not-allowed;
+}
+
+.pageInfo {
+  font-size: 12px;
+  color: #666;
+}
+
+.empty {
+  margin-top: 24px;
+  color: #777;
+}
