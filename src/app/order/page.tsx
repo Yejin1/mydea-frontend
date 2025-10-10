@@ -318,7 +318,7 @@ function OrderContentInner() {
     };
   }, [orderId, previewTotal, router]);
 
-  // PayPal 관련 타입 선언 (간단 버전)
+  // PayPal 관련 타입 선언
   // (타입 선언은 파일 상단에 배치됨)
 
   if (!workId) return <div>workId 파라미터 필요</div>;
