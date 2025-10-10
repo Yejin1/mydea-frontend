@@ -85,6 +85,14 @@ export default function UserMenu() {
               >
                 마이페이지
               </button>
+              <a
+                className={styles.userMenuItem}
+                href="/orders"
+                role="menuitem"
+                onClick={() => setOpen(false)}
+              >
+                주문목록
+              </a>
               <button
                 type="button"
                 className={styles.userMenuItem}
