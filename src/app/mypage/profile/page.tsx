@@ -104,9 +104,9 @@ export default function ProfilePage() {
       setName(updated.name || "");
       setPhone(updated.phone || "");
       setSuccess("저장되었습니다.");
-    } catch (e: any) {
-      const msg = e?.message || "저장 중 오류가 발생했습니다.";
-      setError(msg);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err ?? "");
+      setError(msg || "저장 중 오류가 발생했습니다.");
     } finally {
       setSaving(false);
     }
