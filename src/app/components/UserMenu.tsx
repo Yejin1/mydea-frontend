@@ -74,17 +74,14 @@ export default function UserMenu() {
         <div className={styles.userDropdown} role="menu">
           {session.loggedIn ? (
             <>
-              <button
-                type="button"
+              <a
                 className={styles.userMenuItem}
+                href="/mypage"
                 role="menuitem"
-                onClick={() => {
-                  alert("준비중입니다");
-                  setOpen(false);
-                }}
+                onClick={() => setOpen(false)}
               >
                 마이페이지
-              </button>
+              </a>
               <a
                 className={styles.userMenuItem}
                 href="/orders"

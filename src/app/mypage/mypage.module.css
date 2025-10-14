@@ -1,0 +1,99 @@
+.container {
+  max-width: 1000px;
+  margin: 24px auto;
+  padding: 0 16px;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 16px;
+}
+
+.sidebar {
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fff;
+}
+
+.sideTitle {
+  font-weight: 700;
+  margin: 8px 4px 12px;
+}
+
+.sideMenu {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sideLink {
+  display: block;
+  padding: 8px 10px;
+  border-radius: 6px;
+  color: #333;
+  text-decoration: none;
+}
+
+.sideLink:hover {
+  background: #f6f7fb;
+}
+
+.active {
+  background: #eaf2ff;
+  color: #1649a8;
+  font-weight: 600;
+}
+
+.content {
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  padding: 16px;
+  background: #fff;
+}
+
+/* Form helpers */
+.formGrid {
+  display: grid;
+  gap: 12px;
+  max-width: 520px;
+}
+.label {
+  display: grid;
+  gap: 6px;
+}
+.input {
+  padding: 10px 12px;
+  border: 1px solid #e5e5e5;
+  border-radius: 6px;
+}
+.inputReadonly {
+  padding: 10px 12px;
+  border: 1px solid #e5e5e5;
+  border-radius: 6px;
+  background: #fafafa;
+}
+.actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.btnPrimary {
+  padding: 10px 16px;
+  background: #1649a8;
+  color: #fff;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.btnDisabled {
+  background: #c7d2fe;
+  cursor: not-allowed;
+}
+.errorText {
+  color: #b00020;
+}
+.successText {
+  color: #0f7b0f;
+}
