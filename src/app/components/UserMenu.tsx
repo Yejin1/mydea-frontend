@@ -76,7 +76,7 @@ export default function UserMenu() {
             <>
               <a
                 className={styles.userMenuItem}
-                href="/mypage"
+                href="/mypage/profile"
                 role="menuitem"
                 onClick={() => setOpen(false)}
               >
