@@ -47,7 +47,7 @@ export default function ProfilePage() {
         if (aborted) return;
         setInitial(data);
         setName(data.name || "");
-        setNickname((data as any).nickname ?? "");
+        setNickname(data.nickname ?? "");
         setPhone(data.phone || "");
       })
       .catch(
@@ -80,7 +80,7 @@ export default function ProfilePage() {
     if (!nameValid || !phoneValid || !nicknameValid) return false;
     const changes: UpdateProfileRequest = {};
     if (name !== (initial.name || "")) changes.name = name.trim();
-    if (nickname !== ((initial as any).nickname ?? ""))
+    if (nickname !== (initial.nickname ?? ""))
       changes.nickname = nickname.trim() || undefined;
     if (phone !== (initial.phone || ""))
       changes.phone = phone.trim() || undefined;
@@ -95,7 +95,7 @@ export default function ProfilePage() {
     setSuccess(null);
     const body: UpdateProfileRequest = {};
     if (name !== (initial.name || "")) body.name = name.trim();
-    if (nickname !== ((initial as any).nickname ?? "")) {
+    if (nickname !== (initial.nickname ?? "")) {
       const trimmed = nickname.trim();
       if (trimmed) body.nickname = trimmed;
       else body.nickname = ""; // empty clears server-side
@@ -118,7 +118,7 @@ export default function ProfilePage() {
       const updated: AccountProfileResponse = await r.json();
       setInitial(updated);
       setName(updated.name || "");
-      setNickname((updated as any).nickname ?? "");
+      setNickname(updated.nickname ?? "");
       setPhone(updated.phone || "");
       setSuccess("저장되었습니다.");
     } catch (err: unknown) {
@@ -170,7 +170,7 @@ export default function ProfilePage() {
                 value={nickname}
                 onChange={(e) => setNickname(e.target.value)}
                 maxLength={50}
-                placeholder="예) 예진, mydea팬"
+                placeholder="닉네임"
                 className={styles.input}
               />
               {!nicknameValid && (
