@@ -8,6 +8,7 @@ type AccountProfileResponse = {
   email: string;
   emailVerified: boolean;
   name: string;
+  nickname?: string | null;
   phone: string | null;
   phoneVerified: boolean;
   role: string;
@@ -18,6 +19,7 @@ type AccountProfileResponse = {
 
 type UpdateProfileRequest = {
   name?: string;
+  nickname?: string;
   phone?: string;
 };
 
@@ -29,6 +31,7 @@ export default function ProfilePage() {
 
   const [initial, setInitial] = useState<AccountProfileResponse | null>(null);
   const [name, setName] = useState("");
+  const [nickname, setNickname] = useState("");
   const [phone, setPhone] = useState("");
 
   useEffect(() => {
@@ -44,6 +47,7 @@ export default function ProfilePage() {
         if (aborted) return;
         setInitial(data);
         setName(data.name || "");
+        setNickname((data as any).nickname ?? "");
         setPhone(data.phone || "");
       })
       .catch(
@@ -66,15 +70,22 @@ export default function ProfilePage() {
     return name.length <= 100;
   }, [name]);
 
+  const nicknameValid = useMemo(() => {
+    if (!nickname) return true; // optional
+    return nickname.length <= 50;
+  }, [nickname]);
+
   const canSave = useMemo(() => {
     if (!initial) return false;
-    if (!nameValid || !phoneValid) return false;
+    if (!nameValid || !phoneValid || !nicknameValid) return false;
     const changes: UpdateProfileRequest = {};
     if (name !== (initial.name || "")) changes.name = name.trim();
+    if (nickname !== ((initial as any).nickname ?? ""))
+      changes.nickname = nickname.trim() || undefined;
     if (phone !== (initial.phone || ""))
       changes.phone = phone.trim() || undefined;
     return Object.keys(changes).length > 0;
-  }, [initial, name, phone, nameValid, phoneValid]);
+  }, [initial, name, phone, nickname, nameValid, phoneValid, nicknameValid]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -84,6 +95,11 @@ export default function ProfilePage() {
     setSuccess(null);
     const body: UpdateProfileRequest = {};
     if (name !== (initial.name || "")) body.name = name.trim();
+    if (nickname !== ((initial as any).nickname ?? "")) {
+      const trimmed = nickname.trim();
+      if (trimmed) body.nickname = trimmed;
+      else body.nickname = ""; // empty clears server-side
+    }
     if (phone !== (initial.phone || "")) {
       const trimmed = phone.trim();
       if (trimmed) body.phone = trimmed;
@@ -102,6 +118,7 @@ export default function ProfilePage() {
       const updated: AccountProfileResponse = await r.json();
       setInitial(updated);
       setName(updated.name || "");
+      setNickname((updated as any).nickname ?? "");
       setPhone(updated.phone || "");
       setSuccess("저장되었습니다.");
     } catch (err: unknown) {
@@ -145,6 +162,22 @@ export default function ProfilePage() {
                 required
                 className={styles.input}
               />
+            </label>
+            <label className={styles.label}>
+              <span style={{ fontSize: 13, color: "#555" }}>닉네임</span>
+              <input
+                type="text"
+                value={nickname}
+                onChange={(e) => setNickname(e.target.value)}
+                maxLength={50}
+                placeholder="예) 예진, mydea팬"
+                className={styles.input}
+              />
+              {!nicknameValid && (
+                <span className={styles.errorText} style={{ fontSize: 12 }}>
+                  닉네임은 최대 50자까지 입력할 수 있습니다.
+                </span>
+              )}
             </label>
             <label className={styles.label}>
               <span style={{ fontSize: 13, color: "#555" }}>휴대폰번호</span>
