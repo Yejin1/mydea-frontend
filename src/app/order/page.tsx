@@ -49,6 +49,7 @@ function OrderContentInner() {
   const search = useSearchParams();
   const router = useRouter();
   const workId = search.get("workId");
+  const cartIdParam = search.get("cartId");
   const sizeMmParam = search.get("size");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -103,7 +104,10 @@ function OrderContentInner() {
     (async () => {
       try {
         setLoading(true);
-        if (workId) {
+        // cartId 파라미터가 있는 경우: 장바구니 기반 주문 우선 (workId 없이도 미리보기 가능)
+        if (cartIdParam) {
+          // workId 없이도 cart 미리보기로 총액 계산 시도
+        } else if (workId) {
           const res = await fetch(`/api/works/${workId}`);
           if (res.ok) {
             const data = await res.json();
@@ -127,11 +131,14 @@ function OrderContentInner() {
         if (!cancelled && resolvedCartId) setCartId(resolvedCartId);
 
         // 2) 주문 미리보기: cartId 있으면 기존 preview 호출, 없으면 direct 모드로 전환 (direct는 프론트에서 추정 금액 계산)
-        if (resolvedCartId) {
+        const effectiveCartId = cartIdParam
+          ? Number(cartIdParam)
+          : resolvedCartId;
+        if (effectiveCartId) {
           const previewRes = await fetch("/api/orders/preview", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ cartId: resolvedCartId }),
+            body: JSON.stringify({ cartId: effectiveCartId }),
           });
           if (previewRes.ok) {
             const pv = await previewRes.json();
@@ -154,7 +161,7 @@ function OrderContentInner() {
     return () => {
       cancelled = true;
     };
-  }, [workId, sizeMmParam]);
+  }, [workId, sizeMmParam, cartIdParam]);
 
   async function createOrder() {
     if (creating || orderId) return;
@@ -182,15 +189,16 @@ function OrderContentInner() {
           }),
         });
       } else {
-        if (!cartId) {
-          alert("장바구니 정보를 불러올 수 없습니다.");
+        const effectiveCartId = cartIdParam ? Number(cartIdParam) : cartId;
+        if (!effectiveCartId) {
+          alert("장바구니 정보를 확인할 수 없습니다.");
           return;
         }
         res = await fetch("/api/orders", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            cartId,
+            cartId: effectiveCartId,
             recipientName: recipient.name || "받는이",
             phone: recipient.phone || "010-0000-0000",
             address1: recipient.address1 || "주소1",
@@ -344,16 +352,15 @@ function OrderContentInner() {
     }
   }, [directMode, work, sizeMmParam]);
 
-  if (!workId) return <div>workId 파라미터 필요</div>;
   if (loading) return <div>주문 정보 불러오는 중...</div>;
   if (error) return <div style={{ color: "red" }}>{error}</div>;
-  if (!work) return <div>작업을 찾을 수 없습니다.</div>;
+  // cartId 기반 주문일 수 있으므로 work 가 없어도 진행 가능
 
   return (
     <div className={styles.container}>
       <h1 className={styles.title}>주문 / 결제</h1>
       <div className={styles.layoutRow}>
-        {work.previewUrl && (
+        {work?.previewUrl && (
           <div className={styles.previewThumbWrapper}>
             <Image
               src={work.previewUrl}
@@ -366,30 +373,29 @@ function OrderContentInner() {
           </div>
         )}
         <div style={{ flex: 1 }}>
-          <p className={styles.infoP}>
-            <strong>이름:</strong> {work.name}
-          </p>
-          <p className={styles.infoP}>
-            <strong>디자인:</strong> {work.designType}
-          </p>
-          <p className={styles.infoP}>
-            <strong>종류:</strong> {work.workType}
-          </p>
-          <p className={styles.infoP}>
-            <strong>사이즈(mm):</strong> {sizeMmParam}
-          </p>
+          {work ? (
+            <>
+              <p className={styles.infoP}>
+                <strong>이름:</strong> {work.name}
+              </p>
+              <p className={styles.infoP}>
+                <strong>디자인:</strong> {work.designType}
+              </p>
+              <p className={styles.infoP}>
+                <strong>종류:</strong> {work.workType}
+              </p>
+              <p className={styles.infoP}>
+                <strong>사이즈(mm):</strong> {sizeMmParam}
+              </p>
+            </>
+          ) : (
+            <p className={styles.infoP}>장바구니 주문</p>
+          )}
           <p className={styles.infoP}>
             <strong>주문 예상 총액:</strong>{" "}
             {previewTotal >= 0 ? previewTotal.toLocaleString() : "--"}원
-            {cartId && !directMode && (
-              <span className={styles.amountNote}>(cartId: {cartId})</span>
-            )}
           </p>
-          {orderId && (
-            <p className={styles.orderIdInfo}>
-              주문ID: {orderId} ({orderNo})
-            </p>
-          )}
+          {orderId && <p className={styles.orderIdInfo}>주문번호: {orderNo}</p>}
         </div>
       </div>
       {/* PayPal 결제 영역 */}

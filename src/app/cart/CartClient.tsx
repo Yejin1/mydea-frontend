@@ -40,6 +40,8 @@ export default function CartClient() {
   const [updatingIds, setUpdatingIds] = useState<Set<number>>(new Set()); // PATCH 진행 중
   const [removingIds, setRemovingIds] = useState<Set<number>>(new Set());
   const [draftQty, setDraftQty] = useState<Record<number, number>>({});
+  const [cartId, setCartId] = useState<number | null>(null);
+  const [checkingOut, setCheckingOut] = useState(false);
 
   // 파생 값 메모
   const totalQty = useMemo(
@@ -65,12 +67,22 @@ export default function CartClient() {
         throw new Error(`장바구니 조회 실패 (${res.status})`);
       }
       interface CartResponse {
+        id?: number;
+        cartId?: number;
         items: CartItem[];
         total?: number;
       }
       const data: CartResponse = await res.json();
       const arr = Array.isArray(data.items) ? data.items : [];
       setItems(arr);
+      // cartId 저장
+      const resolvedId =
+        typeof data.cartId === "number"
+          ? data.cartId
+          : typeof data.id === "number"
+          ? data.id
+          : null;
+      setCartId(resolvedId);
       // 서버 total 이 없으면 단순 재계산
       const t =
         typeof data.total === "number"
@@ -104,6 +116,33 @@ export default function CartClient() {
       if (next < 1 || next > 999) return prev;
       return { ...prev, [item.cartItemId]: next };
     });
+  }
+
+  async function checkoutCart() {
+    if (checkingOut) return;
+    setCheckingOut(true);
+    try {
+      // cartId 를 알고 있으면 파라미터로 넘겨 주문 페이지에서 장바구니 기반 결제 진행
+      let cid = cartId;
+      if (!cid) {
+        try {
+          const r = await fetch("/api/cart", { cache: "no-store" });
+          if (r.ok) {
+            const j: { id?: number; cartId?: number } = await r.json();
+            cid =
+              typeof j.cartId === "number"
+                ? j.cartId
+                : typeof j.id === "number"
+                ? j.id
+                : null;
+          }
+        } catch {}
+      }
+      if (cid) window.location.href = `/order?cartId=${cid}`;
+      else window.location.href = "/order"; // 페이지에서 재확인
+    } finally {
+      setCheckingOut(false);
+    }
   }
 
   function setDraftDirect(item: CartItem, raw: string) {
@@ -353,9 +392,10 @@ export default function CartClient() {
             <div className={styles.actionsRow}>
               <button
                 className={styles.checkoutBtn}
-                onClick={() => alert("결제 기능은 준비 중입니다.")}
+                disabled={checkingOut || items.length === 0}
+                onClick={checkoutCart}
               >
-                주문 진행
+                {checkingOut ? "진행 중..." : "주문 진행"}
               </button>
               <button
                 className={styles.continueBtn}
