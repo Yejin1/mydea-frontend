@@ -47,8 +47,8 @@ function setHttpOnlyCookie(
   });
 }
 
-// 기본 10초 타임아웃
-const LOGIN_TIMEOUT_MS = 10_000;
+//40초 타임아웃
+const LOGIN_TIMEOUT_MS = 40_000;
 
 export async function POST(request: NextRequest) {
   const begunAt = Date.now();
