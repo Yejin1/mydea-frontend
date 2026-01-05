@@ -1,4 +1,4 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
+ㅋ# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
 # More GitHub Actions for Azure: https://github.com/Azure/actions
 
 name: Build and deploy Node.js app to Azure Web App - mydea-frontend-2
@@ -133,7 +133,7 @@ jobs:
         with:
           app-name: 'mydea-frontend-2'
           slot-name: 'Production'
-          package: .
+          package: ./release/release.zip
 
           
 
