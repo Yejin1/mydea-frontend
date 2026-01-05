@@ -12,28 +12,95 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read #This is required for actions/checkout
-
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Node.js version
-        uses: actions/setup-node@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: '20.x'
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'package-lock.json'
 
-      - name: npm install, build, and test
+      - name: Install deps
+        run: npm ci
+
+      - name: Build (standalone)
+        run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+
+      - name: Assert standalone output exists
         run: |
-          npm install
-          npm run build --if-present
-          npm run test --if-present
+          ls -al .next
+          if [ ! -d ".next/standalone" ]; then
+            echo "❌ .next/standalone not found"
+            exit 1
+          fi
+          test -f .next/standalone/server.js
 
-      - name: Upload artifact for deployment job
+      - name: Package standalone output
+        run: |
+          set -e
+          rm -rf package && mkdir -p package
+
+          # 1) standalone 산출물 복사
+          cp -r .next/standalone/* package/
+
+          # 2) 정적 파일(static) + BUILD_ID
+          mkdir -p package/.next/static
+          cp -r .next/static/* package/.next/static/
+          mkdir -p package/.next
+          cp .next/BUILD_ID package/.next/BUILD_ID
+
+          # 3) 서버 런타임이 참조하는 server/ 트리 추가
+          if [ -d ".next/server" ]; then
+            mkdir -p package/.next/server
+            cp -r .next/server/* package/.next/server/
+          fi
+
+          # 4) 루트 manifest 몇 개 복사
+          for f in \
+            app-build-manifest.json \
+            app-path-routes-manifest.json \
+            build-manifest.json \
+            images-manifest.json \
+            prerender-manifest.json \
+            react-loadable-manifest.json \
+            required-server-files.json \
+            routes-manifest.json \
+            next-server.js.nft.json \
+            next-minimal-server.js.nft.json
+          do
+            [ -f ".next/$f" ] && cp ".next/$f" "package/.next/$f"
+          done
+
+          # 5) public 폴더 추가
+          if [ -d public ]; then
+            mkdir -p package/public && cp -r public/* package/public/
+          fi
+
+          echo "== packaged root =="
+          ls -al package | sed -n '1,120p'
+
+          # 검증
+          test -f package/server.js
+          test -f package/.next/BUILD_ID
+          test -d package/.next/static
+          test -d package/node_modules
+          test -d package/.next/server
+
+      - name: Create release.zip
+        run: |
+          cd package && zip -r ../release.zip . && cd ..
+          echo "== zip top =="
+          unzip -l release.zip | head -20
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: node-app
-          path: .
+          name: release
+          path: release.zip
 
   deploy:
     runs-on: ubuntu-latest
@@ -62,4 +129,5 @@ jobs:
           app-name: 'mydea-frontend-2'
           slot-name: 'Production'
           package: .
+
           
